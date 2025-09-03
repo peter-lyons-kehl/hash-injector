@@ -1,0 +1,21 @@
+[package]
+name = "hash-injector"
+version = "0.1.0"
+edition = "2024"
+
+license = "BSD-2-Clause OR Apache-2.0 OR MIT"
+rust-version = "1.85.0"
+
+authors = ["Peter Lyons Kehl<peter.kehl@gmail.com>"]
+description = "Hasher+BuildHasher to inject particular hash"
+
+categories = ["algorithms", "caching", "data-structures"]
+
+keywords = ["cache", "lru", "hashmap", "data-structures"]
+
+[dependencies]
+
+[features]
+asserts = []
+extra_flow = []
+# default = ["asserts"]
