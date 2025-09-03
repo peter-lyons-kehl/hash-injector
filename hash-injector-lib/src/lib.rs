@@ -247,8 +247,9 @@ impl<H: Hasher> Hasher for SignalledInjectionHasher<H> {
             if let SignalState::HashPossiblyProposed(i) = self.state {
                 self.state = SignalState::HashReceived(i);
             } else {
-                // Fail if "asserts" feature is enabled:
-                self.assert_state(SignalStateKind::HashPossiblyProposed);
+                #[cfg(feature = "asserts")]
+                assert!(false, "Expected state HashPossiblyProposed, but it was {:?}.", self.state);
+                
                 self.hasher.write_length_prefix(len);
                 self.written_ordinary_hash();
             }
