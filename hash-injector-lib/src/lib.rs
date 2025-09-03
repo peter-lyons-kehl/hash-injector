@@ -36,6 +36,9 @@ pub fn signal_inject_hash<H: Hasher>(hasher: &mut H, hash: u64) {
         hasher.write_u64(hash);
         hasher.write_length_prefix(SIGNALLED_LENGTH_PREFIX);
     }
+    // Check that finish() does return the signalled hash:
+    #[cfg(feature = "inject_checks_hasher")]
+    assert_eq!(hasher.finish(), hash);
 }
 
 /// A state machine for a [Hash] implementation to pass a specified hash to [Hasher] - rather than
@@ -45,6 +48,7 @@ pub fn signal_inject_hash<H: Hasher>(hasher: &mut H, hash: u64) {
 #[derive(PartialEq, Eq, Debug)]
 enum SignalStateKind {
     NothingWritten = 1,
+    /// Ordinary hash (or its part) written
     WrittenOrdinaryHash = 2,
 
     // Set to zero, so as to speed up write_u64(,,,) when under #[cfg(feature = "extra_flow")]
@@ -88,9 +92,10 @@ impl<H: Hasher> SignalledInjectionHasher<H> {
     }
     // @TODO if this doesn't optimize away in release, replace with a macro.
     #[inline(always)]
-    fn assert_state_kind(&self, expected_state_kind: SignalStateKind) {
+    #[cfg_attr(not(feature = "extra_flow"), allow(dead_code))]
+    fn assert_state_kind(&self, _expected_state_kind: SignalStateKind) {
         #[cfg(feature = "asserts")]
-        assert_eq!(self.state.kind, expected_state_kind);
+        assert_eq!(self.state.kind, _expected_state_kind);
     }
     // @TODO if this doesn't optimize away in release, replace with a macro.
     #[inline(always)]
@@ -99,11 +104,13 @@ impl<H: Hasher> SignalledInjectionHasher<H> {
     }
     // @TODO if this doesn't optimize away in release, replace with a macro.
     #[inline(always)]
+    #[cfg_attr(not(feature = "extra_flow"), allow(dead_code))]
     fn assert_nothing_written(&self) {
         self.assert_state_kind(SignalStateKind::NothingWritten);
     }
     // @TODO if this doesn't optimize away in release, replace with a macro.
     #[inline(always)]
+    #[cfg_attr(not(feature = "extra_flow"), allow(dead_code))]
     fn assert_nothing_written_or_ordinary_hash(&self) {
         #[cfg(feature = "asserts")]
         assert!(
@@ -194,6 +201,8 @@ impl<H: Hasher> Hasher for SignalledInjectionHasher<H> {
         {
             self.assert_nothing_written_or_ordinary_hash_or_proposed();
             self.state = SignalState::new(SignalStateKind::HashPossiblyProposed, i);
+            // If we are indeed signalling, then the compiler can optimize the following away
+            // (thanks to generics):
             self.hasher.write_u64(i);
         }
     }
