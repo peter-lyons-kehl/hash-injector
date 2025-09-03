@@ -18,4 +18,7 @@ keywords = ["cache", "lru", "hashmap", "data-structures"]
 [features]
 asserts = []
 extra_flow = []
-# default = ["asserts"]
+
+#default = ["asserts"]
+#default = [           "extra_flow"]
+#default = ["asserts", "extra_flow"]

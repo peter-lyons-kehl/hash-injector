@@ -1,10 +1,11 @@
+#![no_std]
 #![feature(hasher_prefixfree_extras)]
 
 use core::hash::{BuildHasher, Hasher};
 
 const SIGNALLED_LENGTH_PREFIX: usize = usize::MAX;
 
-/// For use with [SignalledInjectionHasher] created by [SignalledInjectionBuildHasher].
+/// For use with [SignalledInjectionHasher] `created by [SignalledInjectionBuildHasher].
 ///
 /// Be careful when using this function with standard/third party [Hasher] (and [BuildHasher])
 /// implementations.
@@ -43,12 +44,42 @@ pub fn signal_inject_hash<H: Hasher>(hasher: &mut H, hash: u64) {
 /// Variants are in order of progression.
 #[derive(PartialEq, Eq, Debug)]
 enum SignalState {
-    NotSignalled,
+    NothingWritten,
+    WrittenOrdinaryHash,
+
     #[cfg(feature = "extra_flow")]
-    Signalled,
+    SignalledProposalComing,
+
     #[cfg(not(feature = "extra_flow"))]
-    HashInjected(u64),
-    HashSignaled(u64),
+    HashProposed(u64),
+    
+    HashReceived(u64),
+}
+impl SignalState {
+    pub fn kind(&self) -> SignalStateKind {
+        match self {
+            Self::NothingWritten => SignalStateKind::NothingWritten,
+            Self::WrittenOrdinaryHash => SignalStateKind::WrittenOrdinaryHash,
+            #[cfg(feature = "extra_flow")]
+            Self::SignalledProposalComing => SignalStateKind::SignalledProposalComing,
+            #[cfg(not(feature = "extra_flow"))]
+            Self::HashProposed(_) => SignalStateKind::HashProposed,
+            Self::HashReceived(_) => SignalStateKind::HashReceived,
+        }
+    }
+}
+#[derive(PartialEq, Eq, Debug)]
+enum SignalStateKind {
+    NothingWritten,
+    WrittenOrdinaryHash,
+
+    #[cfg(feature = "extra_flow")]
+    SignalledProposalComing,
+    
+    #[cfg(not(feature = "extra_flow"))]
+    HashProposed,
+    
+    HashReceived,
 }
 
 pub struct SignalledInjectionHasher<H: Hasher> {
@@ -60,23 +91,28 @@ impl<H: Hasher> SignalledInjectionHasher<H> {
     fn new(hasher: H) -> Self {
         Self {
             hasher,
-            state: SignalState::NotSignalled,
+            state: SignalState::NothingWritten,
         }
     }
     // @TODO if this doesn't optimize away in release, replace with a macro.
     #[inline(always)]
-    fn assert_ordinary_write(&self) {
+    fn assert_nothing_written(&self) {
+        self.assert_state(SignalStateKind::NothingWritten);
+    }
+    // @TODO if this doesn't optimize away in release, replace with a macro.
+    #[inline(always)]
+    fn assert_state(&self, expected_state: SignalStateKind) {
         #[cfg(feature = "asserts")]
-        assert_eq!(self.state, SignalState::NotSignalled);
+        assert_eq!(self.state.kind(), expected_state);
     }
 }
 impl<H: Hasher> Hasher for SignalledInjectionHasher<H> {
     #[inline]
     fn finish(&self) -> u64 {
-        if let SignalState::HashSignaled(hash) = self.state {
+        if let SignalState::HashReceived(hash) = self.state {
             hash
         } else {
-            self.assert_ordinary_write();
+            self.assert_nothing_written();
             self.hasher.finish()
         }
     }
@@ -84,98 +120,107 @@ impl<H: Hasher> Hasher for SignalledInjectionHasher<H> {
     /// `write_u64` would when signalling.
     #[inline]
     fn write(&mut self, bytes: &[u8]) {
-        self.assert_ordinary_write();
+        self.assert_nothing_written();
         self.hasher.write(bytes);
     }
 
     #[inline]
     fn write_u8(&mut self, i: u8) {
-        self.assert_ordinary_write();
+        self.assert_nothing_written();
         self.hasher.write_u8(i);
     }
     #[inline]
     fn write_u16(&mut self, i: u16) {
-        self.assert_ordinary_write();
+        self.assert_nothing_written();
         self.hasher.write_u16(i);
     }
     #[inline]
     fn write_u32(&mut self, i: u32) {
-        self.assert_ordinary_write();
+        self.assert_nothing_written();
         self.hasher.write_u32(i);
     }
     fn write_u64(&mut self, i: u64) {
         #[cfg(feature = "extra_flow")]
-        if self.state == SignalState::Signalled {
-            self.state = SignalState::HashSignaled(i);
+        if self.state == SignalState::SignalledProposalComing {
+            self.state = SignalState::HashReceived(i);
         } else {
-            self.assert_ordinary_write();
+            self.assert_nothing_written();
         }
         #[cfg(not(feature = "extra_flow"))]
         {
-            self.state = SignalState::HashInjected(i);
+            self.assert_nothing_written();
+            self.state = SignalState::HashProposed(i);
         }
+        // @TODO skip the folllwing, if signalled
         self.hasher.write_u64(i);
     }
     #[inline]
     fn write_u128(&mut self, i: u128) {
-        self.assert_ordinary_write();
+        self.assert_nothing_written();
         self.hasher.write_u128(i);
     }
     #[inline]
     fn write_usize(&mut self, i: usize) {
-        self.assert_ordinary_write();
+        self.assert_nothing_written();
         self.hasher.write_usize(i);
     }
     #[inline]
     fn write_i8(&mut self, i: i8) {
-        self.assert_ordinary_write();
+        self.assert_nothing_written();
         self.hasher.write_i8(i);
     }
     #[inline]
     fn write_i16(&mut self, i: i16) {
-        self.assert_ordinary_write();
+        self.assert_nothing_written();
         self.hasher.write_i16(i);
     }
     #[inline]
     fn write_i32(&mut self, i: i32) {
-        self.assert_ordinary_write();
+        self.assert_nothing_written();
         self.hasher.write_i32(i);
     }
     #[inline]
     fn write_i64(&mut self, i: i64) {
-        self.assert_ordinary_write();
+        self.assert_nothing_written();
         self.hasher.write_i64(i);
     }
     #[inline]
     fn write_i128(&mut self, i: i128) {
-        self.assert_ordinary_write();
+        self.assert_nothing_written();
         self.hasher.write_i128(i);
     }
     #[inline]
     fn write_isize(&mut self, i: isize) {
-        self.assert_ordinary_write();
+        self.assert_nothing_written();
         self.hasher.write_isize(i);
     }
     fn write_length_prefix(&mut self, len: usize) {
         #[cfg(feature = "extra_flow")]
-        if len == SIGNALLED_LENGTH_PREFIX {
-            self.state = SignalState::Signalled;
-        } else {
-            self.assert_ordinary_write();
-            self.hasher.write_length_prefix(len);
+        {
+            self.assert_nothing_written();
+            if len == SIGNALLED_LENGTH_PREFIX {
+                self.state = SignalState::SignalledProposalComing;
+            } else {
+                self.hasher.write_length_prefix(len);
+            }
         }
         #[cfg(not(feature = "extra_flow"))]
-        if len == SIGNALLED_LENGTH_PREFIX
-            && let SignalState::HashInjected(i) = self.state
-        {
-            self.state = SignalState::HashSignaled(i);
+        if len == SIGNALLED_LENGTH_PREFIX {
+            if let SignalState::HashProposed(i) = self.state {
+                self.state = SignalState::HashReceived(i);
+            } else {
+                // Fail if "asserts" feature is enabled:
+                self.assert_state(SignalStateKind::HashProposed);
+                self.hasher.write_length_prefix(len);
+            }
         } else {
+            self.assert_nothing_written();
             self.hasher.write_length_prefix(len);
         }
     }
     #[inline]
     fn write_str(&mut self, s: &str) {
-        self.assert_ordinary_write();
+        self.assert_nothing_written();
         self.hasher.write_str(s);
     }
 }
