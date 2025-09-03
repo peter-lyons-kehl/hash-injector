@@ -3,7 +3,21 @@
 
 use core::hash::{BuildHasher, Hasher};
 
+#[cfg(all(
+    feature = "injector_checks_same_flow",
+    not(feature = "injector_checks_finish")
+))]
+const _SAME_FLOW_CHECK_REQUIRES_FINISH_CHECK: () = {
+    panic!(
+        "Feature injector_checks_same_flow is enabled, but it requires feature injector_checks_finish, too."
+    );
+};
+
 const SIGNALLED_LENGTH_PREFIX: usize = usize::MAX;
+/// Used only when feature injector_checks_same_flow is enabled.
+const _CHECKED_EXTRA_FLOW: usize = usize::MAX - 1;
+/// Used only when feature injector_checks_same_flow is enabled.
+const _CHECKED_STANDARD_FLOW: usize = usize::MAX - 2;
 
 /// For use with [SignalledInjectionHasher] `created by [SignalledInjectionBuildHasher].
 ///
@@ -23,22 +37,27 @@ const SIGNALLED_LENGTH_PREFIX: usize = usize::MAX;
 ///
 /// Extra validation of signalling in the user's [core::hash::Hash] implementation is done ONLY in
 /// when built with `asserts` feature.
-pub fn signal_inject_hash<H: Hasher>(hasher: &mut H, hash: u64) {
-    // The order of operations is intentionally different for debug and release. This (hopefully)
-    // helps us notice any logical errors or opportunities for improvement in this module earlier.
-    #[cfg(feature = "extra_flow")]
-    {
+pub fn signal_inject_hash<H: Hasher, const EXTRA_FLOW: bool>(hasher: &mut H, hash: u64) {
+    // The order of operations is intentionally different for EXTRA_FLOW. This (hopefully) helps us
+    // notice any logical errors or opportunities for improvement in this module earlier.
+    if EXTRA_FLOW {
         hasher.write_length_prefix(SIGNALLED_LENGTH_PREFIX);
         hasher.write_u64(hash);
-    }
-    #[cfg(not(feature = "extra_flow"))]
-    {
+    } else {
         hasher.write_u64(hash);
         hasher.write_length_prefix(SIGNALLED_LENGTH_PREFIX);
     }
-    // Check that finish() does return the signalled hash:
+    // Check that finish() does return the signalled hash. We do this BEFORE
+    // injector_checks_same_flow-based checks (if any).
     #[cfg(feature = "injector_checks_finish")]
     assert_eq!(hasher.finish(), hash);
+
+    #[cfg(feature = "injector_checks_same_flow")]
+    if EXTRA_FLOW {
+        hasher.write_length_prefix(_CHECKED_EXTRA_FLOW);
+    } else {
+        hasher.write_length_prefix(_CHECKED_STANDARD_FLOW);
+    }
 }
 
 /// A state machine for a [Hash] implementation to pass a specified hash to [Hasher] - rather than
@@ -51,11 +70,11 @@ enum SignalStateKind {
     /// Ordinary hash (or its part) written
     WrittenOrdinaryHash = 2,
 
-    // Set to zero, so as to speed up write_u64(,,,) when under #[cfg(feature = "extra_flow")]
-    #[cfg(feature = "extra_flow")]
+    // Set to zero, so as to speed up write_u64(,,,) when EXTRA_FLOW=true. Used ONLY when
+    // EXTRA_FLOW=true.
     SignalledProposalComing = 0,
 
-    #[cfg(not(feature = "extra_flow"))]
+    // Ued ONLY when EXTRA_FLOW=false.
     HashPossiblyProposed = 3,
 
     HashReceived = 4,
@@ -78,11 +97,11 @@ impl SignalState {
     }
 }
 
-pub struct SignalledInjectionHasher<H: Hasher> {
+pub struct SignalledInjectionHasher<H: Hasher, const EXTRA_FLOW: bool> {
     hasher: H,
     state: SignalState,
 }
-impl<H: Hasher> SignalledInjectionHasher<H> {
+impl<H: Hasher, const EXTRA_FLOW: bool> SignalledInjectionHasher<H, EXTRA_FLOW> {
     #[inline]
     fn new(hasher: H) -> Self {
         Self {
@@ -92,7 +111,6 @@ impl<H: Hasher> SignalledInjectionHasher<H> {
     }
     // @TODO if this doesn't optimize away in release, replace with a macro.
     #[inline(always)]
-    #[cfg_attr(not(feature = "extra_flow"), allow(dead_code))]
     fn assert_state_kind(&self, _expected_state_kind: SignalStateKind) {
         #[cfg(feature = "asserts")]
         assert_eq!(self.state.kind, _expected_state_kind);
@@ -104,13 +122,11 @@ impl<H: Hasher> SignalledInjectionHasher<H> {
     }
     // @TODO if this doesn't optimize away in release, replace with a macro.
     #[inline(always)]
-    #[cfg_attr(not(feature = "extra_flow"), allow(dead_code))]
     fn assert_nothing_written(&self) {
         self.assert_state_kind(SignalStateKind::NothingWritten);
     }
     // @TODO if this doesn't optimize away in release, replace with a macro.
     #[inline(always)]
-    #[cfg_attr(not(feature = "extra_flow"), allow(dead_code))]
     fn assert_nothing_written_or_ordinary_hash(&self) {
         #[cfg(feature = "asserts")]
         assert!(
@@ -127,31 +143,31 @@ impl<H: Hasher> SignalledInjectionHasher<H> {
     fn assert_nothing_written_or_ordinary_hash_or_proposed(&self) {
         #[cfg(feature = "asserts")]
         {
-            #[cfg(feature = "extra_flow")]
-            assert!(
-                matches!(
-                    self.state.kind,
-                    SignalStateKind::NothingWritten | SignalStateKind::WrittenOrdinaryHash
-                ),
-                "Expecting the state to be NothingWritten or WrittenOrdinaryHash (or HashPossiblyProposed, which is not applicable), but the state was: {:?}",
-                self.state
-            );
-
-            #[cfg(not(feature = "extra_flow"))]
-            assert!(
-                matches!(
-                    self.state.kind,
-                    SignalStateKind::NothingWritten
-                        | SignalStateKind::WrittenOrdinaryHash
-                        | SignalStateKind::HashPossiblyProposed
-                ),
-                "Expecting the state to be NothingWritten or WrittenOrdinaryHash or HashPossiblyProposed, but the state was: {:?}",
-                self.state
-            );
+            if EXTRA_FLOW {
+                assert!(
+                    matches!(
+                        self.state.kind,
+                        SignalStateKind::NothingWritten | SignalStateKind::WrittenOrdinaryHash
+                    ),
+                    "Expecting the state to be NothingWritten or WrittenOrdinaryHash (or HashPossiblyProposed, which is not applicable), but the state was: {:?}",
+                    self.state
+                );
+            } else {
+                assert!(
+                    matches!(
+                        self.state.kind,
+                        SignalStateKind::NothingWritten
+                            | SignalStateKind::WrittenOrdinaryHash
+                            | SignalStateKind::HashPossiblyProposed
+                    ),
+                    "Expecting the state to be NothingWritten or WrittenOrdinaryHash or HashPossiblyProposed, but the state was: {:?}",
+                    self.state
+                );
+            }
         }
     }
 }
-impl<H: Hasher> Hasher for SignalledInjectionHasher<H> {
+impl<H: Hasher, const EXTRA_FLOW: bool> Hasher for SignalledInjectionHasher<H, EXTRA_FLOW> {
     #[inline]
     fn finish(&self) -> u64 {
         if self.state.kind == SignalStateKind::HashReceived {
@@ -189,16 +205,15 @@ impl<H: Hasher> Hasher for SignalledInjectionHasher<H> {
         self.written_ordinary_hash();
     }
     fn write_u64(&mut self, i: u64) {
-        #[cfg(feature = "extra_flow")]
-        if self.state.kind == SignalStateKind::SignalledProposalComing {
-            self.state = SignalState::new(SignalStateKind::HashReceived, i);
+        if EXTRA_FLOW {
+            if self.state.kind == SignalStateKind::SignalledProposalComing {
+                self.state = SignalState::new(SignalStateKind::HashReceived, i);
+            } else {
+                self.assert_nothing_written_or_ordinary_hash();
+                self.hasher.write_u64(i);
+                self.written_ordinary_hash();
+            }
         } else {
-            self.assert_nothing_written_or_ordinary_hash();
-            self.hasher.write_u64(i);
-            self.written_ordinary_hash();
-        }
-        #[cfg(not(feature = "extra_flow"))]
-        {
             self.assert_nothing_written_or_ordinary_hash_or_proposed();
             self.state = SignalState::new(SignalStateKind::HashPossiblyProposed, i);
             // If we are indeed signalling, then the compiler can optimize the following away
@@ -255,38 +270,54 @@ impl<H: Hasher> Hasher for SignalledInjectionHasher<H> {
         self.written_ordinary_hash();
     }
     fn write_length_prefix(&mut self, len: usize) {
-        #[cfg(feature = "extra_flow")]
-        {
+        if EXTRA_FLOW {
             if len == SIGNALLED_LENGTH_PREFIX {
                 self.assert_nothing_written();
                 self.state.kind = SignalStateKind::SignalledProposalComing;
             } else {
+                #[cfg(feature = "injector_checks_same_flow")]
+                {
+                    if len == _CHECKED_EXTRA_FLOW {
+                        return;
+                    }
+                    assert_ne!(len, _CHECKED_STANDARD_FLOW);
+                }
+
                 self.assert_nothing_written_or_ordinary_hash();
                 self.hasher.write_length_prefix(len);
                 self.written_ordinary_hash();
             }
-        }
-        #[cfg(not(feature = "extra_flow"))]
-        if len == SIGNALLED_LENGTH_PREFIX {
-            if self.state.kind == SignalStateKind::HashPossiblyProposed {
-                self.state.kind = SignalStateKind::HashReceived;
-            } else {
-                #[cfg(feature = "asserts")]
-                assert!(
-                    false,
-                    "Expected state HashPossiblyProposed, but it was {:?}.",
-                    self.state
-                );
+        } else {
+            if len == SIGNALLED_LENGTH_PREFIX {
+                if self.state.kind == SignalStateKind::HashPossiblyProposed {
+                    self.state.kind = SignalStateKind::HashReceived;
+                } else {
+                    #[cfg(feature = "asserts")]
+                    assert!(
+                        false,
+                        "Expected state HashPossiblyProposed, but it was {:?}.",
+                        self.state
+                    );
 
+                    self.hasher.write_length_prefix(len);
+                    self.written_ordinary_hash();
+                }
+            } else {
+                #[cfg(feature = "injector_checks_same_flow")]
+                {
+                    if len == _CHECKED_STANDARD_FLOW {
+                        return;
+                    }
+                    assert_ne!(len, _CHECKED_EXTRA_FLOW);
+                }
+
+                self.assert_nothing_written_or_ordinary_hash_or_proposed();
                 self.hasher.write_length_prefix(len);
                 self.written_ordinary_hash();
             }
-        } else {
-            self.assert_nothing_written_or_ordinary_hash_or_proposed();
-            self.hasher.write_length_prefix(len);
-            self.written_ordinary_hash();
         }
     }
+
     #[inline]
     fn write_str(&mut self, s: &str) {
         self.assert_nothing_written_or_ordinary_hash_or_proposed();
@@ -295,16 +326,24 @@ impl<H: Hasher> Hasher for SignalledInjectionHasher<H> {
     }
 }
 
-pub struct SignalledInjectionBuildHasher<H: Hasher, B: BuildHasher<Hasher = H>> {
+pub struct SignalledInjectionBuildHasher<
+    H: Hasher,
+    B: BuildHasher<Hasher = H>,
+    const EXTRA_FLOW: bool,
+> {
     build: B,
 }
-impl<H: Hasher, B: BuildHasher<Hasher = H>> SignalledInjectionBuildHasher<H, B> {
+impl<H: Hasher, B: BuildHasher<Hasher = H>, const EXTRA_FLOW: bool>
+    SignalledInjectionBuildHasher<H, B, EXTRA_FLOW>
+{
     pub fn new(build: B) -> Self {
         Self { build }
     }
 }
-impl<H: Hasher, B: BuildHasher<Hasher = H>> BuildHasher for SignalledInjectionBuildHasher<H, B> {
-    type Hasher = SignalledInjectionHasher<H>;
+impl<H: Hasher, B: BuildHasher<Hasher = H>, const EXTRA_FLOW: bool> BuildHasher
+    for SignalledInjectionBuildHasher<H, B, EXTRA_FLOW>
+{
+    type Hasher = SignalledInjectionHasher<H, EXTRA_FLOW>;
 
     // Required method
     fn build_hasher(&self) -> Self::Hasher {

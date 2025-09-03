@@ -15,20 +15,32 @@ keywords = ["cache", "lru", "hashmap", "data-structures"]
 
 [dependencies]
 
+[lints.rust]
+unexpected_cfgs = { level = "forbid"}
+
 [features]
 # Expensive
 asserts = []
 
-extra_flow = []
-
-# Use to check that the Hasher is (or behaves like) SignalledInjectionHasher. Use only if the hashed
-# types that inject hashes are never used with any incompatible Hasher.
+# Use to check that the Hasher is (or behaves like) SignalledInjectionHasher. Use only if the types
+# that inject hashes are never to be used with any incompatible Hasher.
 #
 # Expensive
 injector_checks_finish = []
 
+# Check that EXTRA_FLOW const generic is the same between signal_inject_hash(...) and SignelledInjectionHasher.
+#
+# Use ONLY if injector_checks_finish is enabled, too.
+#
+# Expensive.
+injector_checks_same_flow = []
+
 #default = ["asserts"]
-#default = [           "extra_flow"]
-#default = ["asserts", "extra_flow"]
-#default = ["asserts",               "injector_checks_finish"]
-#default = ["asserts", "extra_flow", "injector_checks_finish"]
+#default = ["asserts", "injector_checks_finish"]
+
+# NOT allowed - becauuse injector_checks_same_flow requires injector_checks_finish, too.
+#default = [                                     "injector_checks_same_flow"]
+# NOT allowed - becauuse injector_checks_same_flow requires injector_checks_finish, too.
+#default = ["asserts",                           "injector_checks_same_flow"]
+
+default = ["asserts", "injector_checks_finish", "injector_checks_same_flow"]
