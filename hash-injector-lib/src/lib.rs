@@ -41,45 +41,37 @@ pub fn signal_inject_hash<H: Hasher>(hasher: &mut H, hash: u64) {
 /// A state machine for a [Hash] implementation to pass a specified hash to [Hasher] - rather than
 /// [Hasher] hashing the bytes supplied from [Hash].
 ///
-/// Variants are in order of progression.
-#[derive(PartialEq, Eq, Debug)]
-enum SignalState {
-    NothingWritten,
-    WrittenOrdinaryHash,
-
-    #[cfg(feature = "extra_flow")]
-    SignalledProposalComing,
-
-    #[cfg(not(feature = "extra_flow"))]
-    HashPossiblyProposed(u64),
-    
-    HashReceived(u64),
-}
-impl SignalState {
-    pub fn kind(&self) -> SignalStateKind {
-        match self {
-            Self::NothingWritten => SignalStateKind::NothingWritten,
-            Self::WrittenOrdinaryHash => SignalStateKind::WrittenOrdinaryHash,
-            #[cfg(feature = "extra_flow")]
-            Self::SignalledProposalComing => SignalStateKind::SignalledProposalComing,
-            #[cfg(not(feature = "extra_flow"))]
-            Self::HashPossiblyProposed(_) => SignalStateKind::HashPossiblyProposed,
-            Self::HashReceived(_) => SignalStateKind::HashReceived,
-        }
-    }
-}
+/// Variants (but NOT their integer values) are listed in order of progression.
 #[derive(PartialEq, Eq, Debug)]
 enum SignalStateKind {
-    NothingWritten,
-    WrittenOrdinaryHash,
+    NothingWritten = 1,
+    WrittenOrdinaryHash = 2,
 
+    // Set to zero, so as to speed up write_u64(,,,) when under #[cfg(feature = "extra_flow")]
     #[cfg(feature = "extra_flow")]
-    SignalledProposalComing,
-    
+    SignalledProposalComing = 0,
+
     #[cfg(not(feature = "extra_flow"))]
-    HashPossiblyProposed,
-    
-    HashReceived,
+    HashPossiblyProposed = 3,
+
+    HashReceived = 4,
+}
+
+/// This used to be a data-carrying enum on its own, separate from SignalStateKind, NOT containing
+/// SignalStateKind, and carrying the possibly proposed/received hash in its variants. But, then we
+/// couldn't specify its variant integer values without fixing the representation, which would be
+/// limiting.
+#[derive(PartialEq, Eq, Debug)]
+struct SignalState {
+    kind: SignalStateKind,
+    /// Only valid if kind is appropriate.
+    hash: u64,
+}
+impl SignalState {
+    /// `hash` is stored, but irrelevant if `kind` is not appropriate
+    pub fn new(kind: SignalStateKind, hash: u64) -> Self {
+        Self { kind, hash }
+    }
 }
 
 pub struct SignalledInjectionHasher<H: Hasher> {
@@ -91,30 +83,37 @@ impl<H: Hasher> SignalledInjectionHasher<H> {
     fn new(hasher: H) -> Self {
         Self {
             hasher,
-            state: SignalState::NothingWritten,
+            state: SignalState::new(SignalStateKind::NothingWritten, 0),
         }
     }
     // @TODO if this doesn't optimize away in release, replace with a macro.
     #[inline(always)]
-    fn assert_state(&self, expected_state_kind: SignalStateKind) {
+    fn assert_state_kind(&self, expected_state_kind: SignalStateKind) {
         #[cfg(feature = "asserts")]
-        assert_eq!(self.state.kind(), expected_state_kind);
+        assert_eq!(self.state.kind, expected_state_kind);
     }
     // @TODO if this doesn't optimize away in release, replace with a macro.
     #[inline(always)]
     fn written_ordinary_hash(&mut self) {
-        self.state = SignalState::WrittenOrdinaryHash;
+        self.state = SignalState::new(SignalStateKind::WrittenOrdinaryHash, 0);
     }
     // @TODO if this doesn't optimize away in release, replace with a macro.
     #[inline(always)]
     fn assert_nothing_written(&self) {
-        self.assert_state(SignalStateKind::NothingWritten);
+        self.assert_state_kind(SignalStateKind::NothingWritten);
     }
     // @TODO if this doesn't optimize away in release, replace with a macro.
     #[inline(always)]
     fn assert_nothing_written_or_ordinary_hash(&self) {
         #[cfg(feature = "asserts")]
-        assert!(matches!(self.state, SignalState::NothingWritten | SignalState::WrittenOrdinaryHash), "Expecting the state to be NothingWritten or WrittenOrdinaryHash, but the state was: {:?}", self.state);
+        assert!(
+            matches!(
+                self.state.kind,
+                SignalStateKind::NothingWritten | SignalStateKind::WrittenOrdinaryHash
+            ),
+            "Expecting the state to be NothingWritten or WrittenOrdinaryHash, but the state was: {:?}",
+            self.state
+        );
     }
     // @TODO if this doesn't optimize away in release, replace with a macro.
     #[inline(always)]
@@ -122,18 +121,34 @@ impl<H: Hasher> SignalledInjectionHasher<H> {
         #[cfg(feature = "asserts")]
         {
             #[cfg(feature = "extra_flow")]
-            assert!(matches!(self.state, SignalState::NothingWritten | SignalState::WrittenOrdinaryHash), "Expecting the state to be NothingWritten or WrittenOrdinaryHash (or HashPossiblyProposed, which is not applicable), but the state was: {:?}", self.state);
+            assert!(
+                matches!(
+                    self.state.kind,
+                    SignalStateKind::NothingWritten | SignalStateKind::WrittenOrdinaryHash
+                ),
+                "Expecting the state to be NothingWritten or WrittenOrdinaryHash (or HashPossiblyProposed, which is not applicable), but the state was: {:?}",
+                self.state
+            );
 
             #[cfg(not(feature = "extra_flow"))]
-            assert!(matches!(self.state, SignalState::NothingWritten | SignalState::WrittenOrdinaryHash | SignalState::HashPossiblyProposed(_)), "Expecting the state to be NothingWritten or WrittenOrdinaryHash or HashPossiblyProposed, but the state was: {:?}", self.state);
+            assert!(
+                matches!(
+                    self.state.kind,
+                    SignalStateKind::NothingWritten
+                        | SignalStateKind::WrittenOrdinaryHash
+                        | SignalStateKind::HashPossiblyProposed
+                ),
+                "Expecting the state to be NothingWritten or WrittenOrdinaryHash or HashPossiblyProposed, but the state was: {:?}",
+                self.state
+            );
         }
     }
 }
 impl<H: Hasher> Hasher for SignalledInjectionHasher<H> {
     #[inline]
     fn finish(&self) -> u64 {
-        if let SignalState::HashReceived(hash) = self.state {
-            hash
+        if self.state.kind == SignalStateKind::HashReceived {
+            self.state.hash
         } else {
             self.assert_nothing_written_or_ordinary_hash_or_proposed();
             self.hasher.finish()
@@ -168,8 +183,8 @@ impl<H: Hasher> Hasher for SignalledInjectionHasher<H> {
     }
     fn write_u64(&mut self, i: u64) {
         #[cfg(feature = "extra_flow")]
-        if self.state == SignalState::SignalledProposalComing {
-            self.state = SignalState::HashReceived(i);
+        if self.state.kind == SignalStateKind::SignalledProposalComing {
+            self.state = SignalState::new(SignalStateKind::HashReceived, i);
         } else {
             self.assert_nothing_written_or_ordinary_hash();
             self.hasher.write_u64(i);
@@ -178,7 +193,7 @@ impl<H: Hasher> Hasher for SignalledInjectionHasher<H> {
         #[cfg(not(feature = "extra_flow"))]
         {
             self.assert_nothing_written_or_ordinary_hash_or_proposed();
-            self.state = SignalState::HashPossiblyProposed(i);
+            self.state = SignalState::new(SignalStateKind::HashPossiblyProposed, i);
             self.hasher.write_u64(i);
         }
     }
@@ -235,7 +250,7 @@ impl<H: Hasher> Hasher for SignalledInjectionHasher<H> {
         {
             if len == SIGNALLED_LENGTH_PREFIX {
                 self.assert_nothing_written();
-                self.state = SignalState::SignalledProposalComing;
+                self.state.kind = SignalStateKind::SignalledProposalComing;
             } else {
                 self.assert_nothing_written_or_ordinary_hash();
                 self.hasher.write_length_prefix(len);
@@ -244,12 +259,16 @@ impl<H: Hasher> Hasher for SignalledInjectionHasher<H> {
         }
         #[cfg(not(feature = "extra_flow"))]
         if len == SIGNALLED_LENGTH_PREFIX {
-            if let SignalState::HashPossiblyProposed(i) = self.state {
-                self.state = SignalState::HashReceived(i);
+            if self.state.kind == SignalStateKind::HashPossiblyProposed {
+                self.state.kind = SignalStateKind::HashReceived;
             } else {
                 #[cfg(feature = "asserts")]
-                assert!(false, "Expected state HashPossiblyProposed, but it was {:?}.", self.state);
-                
+                assert!(
+                    false,
+                    "Expected state HashPossiblyProposed, but it was {:?}.",
+                    self.state
+                );
+
                 self.hasher.write_length_prefix(len);
                 self.written_ordinary_hash();
             }
