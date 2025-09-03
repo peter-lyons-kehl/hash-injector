@@ -16,16 +16,19 @@ keywords = ["cache", "lru", "hashmap", "data-structures"]
 [dependencies]
 
 [features]
+# Expensive
 asserts = []
 
 extra_flow = []
 
 # Use to check that the Hasher is (or behaves like) SignalledInjectionHasher. Use only if the hashed
-# types that inject hashes are never used with any incompatible Hasher. Expensive.
-inject_checks_hasher = []
+# types that inject hashes are never used with any incompatible Hasher.
+#
+# Expensive
+injector_checks_finish = []
 
 #default = ["asserts"]
 #default = [           "extra_flow"]
 #default = ["asserts", "extra_flow"]
-#default = ["asserts",               "inject_checks_hasher"]
-#default = ["asserts", "extra_flow", "inject_checks_hasher"]
+#default = ["asserts",               "injector_checks_finish"]
+#default = ["asserts", "extra_flow", "injector_checks_finish"]

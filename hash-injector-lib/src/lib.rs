@@ -37,7 +37,7 @@ pub fn signal_inject_hash<H: Hasher>(hasher: &mut H, hash: u64) {
         hasher.write_length_prefix(SIGNALLED_LENGTH_PREFIX);
     }
     // Check that finish() does return the signalled hash:
-    #[cfg(feature = "inject_checks_hasher")]
+    #[cfg(feature = "injector_checks_finish")]
     assert_eq!(hasher.finish(), hash);
 }
 
@@ -161,8 +161,8 @@ impl<H: Hasher> Hasher for SignalledInjectionHasher<H> {
             self.hasher.finish()
         }
     }
-    /// This does NOT signal, even if it sends the same bytes as `write_length_prefix` and
-    /// `write_u64` would when signalling.
+    /// This does NOT signal, even if you handed it the same bytes as [`signal_inject_hash`] passes
+    /// to `write_length_prefix` and `write_u64` would when signalling.
     #[inline]
     fn write(&mut self, bytes: &[u8]) {
         self.assert_nothing_written_or_ordinary_hash_or_proposed();
