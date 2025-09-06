@@ -15,7 +15,7 @@ const _SAME_FLOW_CHECK_REQUIRES_FINISH_CHECK: () = {
 
 const SIGNALLED_LENGTH_PREFIX: usize = usize::MAX;
 /// Used only when feature injector_checks_same_flow is enabled.
-const _CHECKED_EXTRA_FLOW: usize = usize::MAX - 1;
+const _CHECKED_SIGNAL_FIRST: usize = usize::MAX - 1;
 /// Used only when feature injector_checks_same_flow is enabled.
 const _CHECKED_STANDARD_FLOW: usize = usize::MAX - 2;
 
@@ -37,10 +37,10 @@ const _CHECKED_STANDARD_FLOW: usize = usize::MAX - 2;
 ///
 /// Extra validation of signalling in the user's [core::hash::Hash] implementation is done ONLY in
 /// when built with `asserts` feature.
-pub fn signal_inject_hash<H: Hasher, const EXTRA_FLOW: bool>(hasher: &mut H, hash: u64) {
-    // The order of operations is intentionally different for EXTRA_FLOW. This (hopefully) helps us
+pub fn signal_inject_hash<H: Hasher, const SIGNAL_FIRST: bool>(hasher: &mut H, hash: u64) {
+    // The order of operations is intentionally different for SIGNAL_FIRST. This (hopefully) helps us
     // notice any logical errors or opportunities for improvement in this module earlier.
-    if EXTRA_FLOW {
+    if SIGNAL_FIRST {
         hasher.write_length_prefix(SIGNALLED_LENGTH_PREFIX);
         hasher.write_u64(hash);
     } else {
@@ -53,8 +53,8 @@ pub fn signal_inject_hash<H: Hasher, const EXTRA_FLOW: bool>(hasher: &mut H, has
     assert_eq!(hasher.finish(), hash);
 
     #[cfg(feature = "injector_checks_same_flow")]
-    if EXTRA_FLOW {
-        hasher.write_length_prefix(_CHECKED_EXTRA_FLOW);
+    if SIGNAL_FIRST {
+        hasher.write_length_prefix(_CHECKED_SIGNAL_FIRST);
     } else {
         hasher.write_length_prefix(_CHECKED_STANDARD_FLOW);
     }
@@ -70,11 +70,11 @@ enum SignalStateKind {
     /// Ordinary hash (or its part) written
     WrittenOrdinaryHash = 2,
 
-    // Set to zero, so as to speed up write_u64(,,,) when EXTRA_FLOW=true. Used ONLY when
-    // EXTRA_FLOW=true.
+    // Set to zero, so as to speed up write_u64(,,,) when SIGNAL_FIRST=true. Used ONLY when
+    // SIGNAL_FIRST=true.
     SignalledProposalComing = 0,
 
-    // Ued ONLY when EXTRA_FLOW=false.
+    // Ued ONLY when SIGNAL_FIRST=false.
     HashPossiblyProposed = 3,
 
     HashReceived = 4,
@@ -97,11 +97,11 @@ impl SignalState {
     }
 }
 
-pub struct SignalledInjectionHasher<H: Hasher, const EXTRA_FLOW: bool> {
+pub struct SignalledInjectionHasher<H: Hasher, const SIGNAL_FIRST: bool> {
     hasher: H,
     state: SignalState,
 }
-impl<H: Hasher, const EXTRA_FLOW: bool> SignalledInjectionHasher<H, EXTRA_FLOW> {
+impl<H: Hasher, const SIGNAL_FIRST: bool> SignalledInjectionHasher<H, SIGNAL_FIRST> {
     #[inline]
     fn new(hasher: H) -> Self {
         Self {
@@ -143,7 +143,7 @@ impl<H: Hasher, const EXTRA_FLOW: bool> SignalledInjectionHasher<H, EXTRA_FLOW> 
     fn assert_nothing_written_or_ordinary_hash_or_proposed(&self) {
         #[cfg(feature = "asserts")]
         {
-            if EXTRA_FLOW {
+            if SIGNAL_FIRST {
                 assert!(
                     matches!(
                         self.state.kind,
@@ -167,7 +167,7 @@ impl<H: Hasher, const EXTRA_FLOW: bool> SignalledInjectionHasher<H, EXTRA_FLOW> 
         }
     }
 }
-impl<H: Hasher, const EXTRA_FLOW: bool> Hasher for SignalledInjectionHasher<H, EXTRA_FLOW> {
+impl<H: Hasher, const SIGNAL_FIRST: bool> Hasher for SignalledInjectionHasher<H, SIGNAL_FIRST> {
     #[inline]
     fn finish(&self) -> u64 {
         if self.state.kind == SignalStateKind::HashReceived {
@@ -205,7 +205,7 @@ impl<H: Hasher, const EXTRA_FLOW: bool> Hasher for SignalledInjectionHasher<H, E
         self.written_ordinary_hash();
     }
     fn write_u64(&mut self, i: u64) {
-        if EXTRA_FLOW {
+        if SIGNAL_FIRST {
             if self.state.kind == SignalStateKind::SignalledProposalComing {
                 self.state = SignalState::new(SignalStateKind::HashReceived, i);
             } else {
@@ -270,14 +270,14 @@ impl<H: Hasher, const EXTRA_FLOW: bool> Hasher for SignalledInjectionHasher<H, E
         self.written_ordinary_hash();
     }
     fn write_length_prefix(&mut self, len: usize) {
-        if EXTRA_FLOW {
+        if SIGNAL_FIRST {
             if len == SIGNALLED_LENGTH_PREFIX {
                 self.assert_nothing_written();
                 self.state.kind = SignalStateKind::SignalledProposalComing;
             } else {
                 #[cfg(feature = "injector_checks_same_flow")]
                 {
-                    if len == _CHECKED_EXTRA_FLOW {
+                    if len == _CHECKED_SIGNAL_FIRST {
                         return;
                     }
                     assert_ne!(len, _CHECKED_STANDARD_FLOW);
@@ -308,7 +308,7 @@ impl<H: Hasher, const EXTRA_FLOW: bool> Hasher for SignalledInjectionHasher<H, E
                     if len == _CHECKED_STANDARD_FLOW {
                         return;
                     }
-                    assert_ne!(len, _CHECKED_EXTRA_FLOW);
+                    assert_ne!(len, _CHECKED_SIGNAL_FIRST);
                 }
 
                 self.assert_nothing_written_or_ordinary_hash_or_proposed();
@@ -329,21 +329,21 @@ impl<H: Hasher, const EXTRA_FLOW: bool> Hasher for SignalledInjectionHasher<H, E
 pub struct SignalledInjectionBuildHasher<
     H: Hasher,
     B: BuildHasher<Hasher = H>,
-    const EXTRA_FLOW: bool,
+    const SIGNAL_FIRST: bool,
 > {
     build: B,
 }
-impl<H: Hasher, B: BuildHasher<Hasher = H>, const EXTRA_FLOW: bool>
-    SignalledInjectionBuildHasher<H, B, EXTRA_FLOW>
+impl<H: Hasher, B: BuildHasher<Hasher = H>, const SIGNAL_FIRST: bool>
+    SignalledInjectionBuildHasher<H, B, SIGNAL_FIRST>
 {
     pub fn new(build: B) -> Self {
         Self { build }
     }
 }
-impl<H: Hasher, B: BuildHasher<Hasher = H>, const EXTRA_FLOW: bool> BuildHasher
-    for SignalledInjectionBuildHasher<H, B, EXTRA_FLOW>
+impl<H: Hasher, B: BuildHasher<Hasher = H>, const SIGNAL_FIRST: bool> BuildHasher
+    for SignalledInjectionBuildHasher<H, B, SIGNAL_FIRST>
 {
-    type Hasher = SignalledInjectionHasher<H, EXTRA_FLOW>;
+    type Hasher = SignalledInjectionHasher<H, SIGNAL_FIRST>;
 
     // Required method
     fn build_hasher(&self) -> Self::Hasher {

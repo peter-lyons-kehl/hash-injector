@@ -38,9 +38,9 @@ injector_checks_same_flow = []
 #default = ["asserts"]
 #default = ["asserts", "injector_checks_finish"]
 
-# NOT allowed - becauuse injector_checks_same_flow requires injector_checks_finish, too.
+# NOT allowed - because injector_checks_same_flow requires injector_checks_finish, too.
 #default = [                                     "injector_checks_same_flow"]
-# NOT allowed - becauuse injector_checks_same_flow requires injector_checks_finish, too.
+# NOT allowed - because injector_checks_same_flow requires injector_checks_finish, too.
 #default = ["asserts",                           "injector_checks_same_flow"]
 
 default = ["asserts", "injector_checks_finish", "injector_checks_same_flow"]
