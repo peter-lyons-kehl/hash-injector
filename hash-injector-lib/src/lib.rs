@@ -1,22 +1,23 @@
 #![no_std]
 #![feature(hasher_prefixfree_extras)]
+#![feature(adt_const_params)]
 
 use core::hash::{BuildHasher, Hasher};
 
 #[cfg(all(
-    feature = "injector_checks_same_flow",
-    not(feature = "injector_checks_finish")
+    feature = "injector-checks-same-flow",
+    not(feature = "injector-checks-finish")
 ))]
 const _SAME_FLOW_CHECK_REQUIRES_FINISH_CHECK: () = {
     panic!(
-        "Feature injector_checks_same_flow is enabled, but it requires feature injector_checks_finish, too."
+        "Feature injector-checks-same-flow is enabled, but it requires feature injector-checks-finish, too."
     );
 };
 
 const SIGNALLED_LENGTH_PREFIX: usize = usize::MAX;
-/// Used only when feature injector_checks_same_flow is enabled.
+/// Used only when feature injector-checks-same-flow is enabled.
 const _CHECKED_SIGNAL_FIRST: usize = usize::MAX - 1;
-/// Used only when feature injector_checks_same_flow is enabled.
+/// Used only when feature injector-checks-same-flow is enabled.
 const _CHECKED_STANDARD_FLOW: usize = usize::MAX - 2;
 
 /// For use with [SignalledInjectionHasher] `created by [SignalledInjectionBuildHasher].
@@ -48,11 +49,11 @@ pub fn signal_inject_hash<H: Hasher, const SIGNAL_FIRST: bool>(hasher: &mut H, h
         hasher.write_length_prefix(SIGNALLED_LENGTH_PREFIX);
     }
     // Check that finish() does return the signalled hash. We do this BEFORE
-    // injector_checks_same_flow-based checks (if any).
-    #[cfg(feature = "injector_checks_finish")]
+    // injector-checks-same-flow-based checks (if any).
+    #[cfg(feature = "injector-checks-finish")]
     assert_eq!(hasher.finish(), hash);
 
-    #[cfg(feature = "injector_checks_same_flow")]
+    #[cfg(feature = "injector-checks-same-flow")]
     if SIGNAL_FIRST {
         hasher.write_length_prefix(_CHECKED_SIGNAL_FIRST);
     } else {
@@ -275,7 +276,7 @@ impl<H: Hasher, const SIGNAL_FIRST: bool> Hasher for SignalledInjectionHasher<H,
                 self.assert_nothing_written();
                 self.state.kind = SignalStateKind::SignalledProposalComing;
             } else {
-                #[cfg(feature = "injector_checks_same_flow")]
+                #[cfg(feature = "injector-checks-same-flow")]
                 {
                     if len == _CHECKED_SIGNAL_FIRST {
                         return;
@@ -303,7 +304,7 @@ impl<H: Hasher, const SIGNAL_FIRST: bool> Hasher for SignalledInjectionHasher<H,
                     self.written_ordinary_hash();
                 }
             } else {
-                #[cfg(feature = "injector_checks_same_flow")]
+                #[cfg(feature = "injector-checks-same-flow")]
                 {
                     if len == _CHECKED_STANDARD_FLOW {
                         return;
