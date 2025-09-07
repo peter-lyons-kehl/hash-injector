@@ -33,15 +33,23 @@ pub type Flags = bool;
 pub struct Flags {
     signal_first: bool,
 }
-pub const fn new_signal_first(signal_first: bool) -> Flags {
+pub const fn new_flags_signal_first() -> Flags {
     #[cfg(not(feature = "adt-const-params"))]
     {
-        signal_first
+        true
     }
     #[cfg(feature = "adt-const-params")]
-    Flags { signal_first }
+    Flags { signal_first: true }
 }
-const fn signal_first(flags: Flags) -> bool {
+pub const fn new_flags_submit_first() -> Flags {
+    #[cfg(not(feature = "adt-const-params"))]
+    {
+        false
+    }
+    #[cfg(feature = "adt-const-params")]
+    Flags { signal_first: false }
+}
+const fn flags_signal_first(flags: Flags) -> bool {
     #[cfg(not(feature = "adt-const-params"))]
     {
         flags
@@ -73,7 +81,7 @@ const fn signal_first(flags: Flags) -> bool {
 pub fn signal_inject_hash<H: Hasher, const F: Flags>(hasher: &mut H, hash: u64) {
     // The order of operations is intentionally different for SIGNAL_FIRST. This (hopefully) helps us
     // notice any logical errors or opportunities for improvement in this module earlier.
-    if signal_first(F) {
+    if flags_signal_first(F) {
         hasher.write_length_prefix(SIGNALLED_LENGTH_PREFIX);
         hasher.write_u64(hash);
     } else {
@@ -86,7 +94,7 @@ pub fn signal_inject_hash<H: Hasher, const F: Flags>(hasher: &mut H, hash: u64) 
     assert_eq!(hasher.finish(), hash);
 
     #[cfg(feature = "injector-checks-same-flow")]
-    if signal_first(F) {
+    if flags_signal_first(F) {
         hasher.write_length_prefix(_CHECKED_SIGNAL_FIRST);
     } else {
         hasher.write_length_prefix(_CHECKED_STANDARD_FLOW);
@@ -108,13 +116,13 @@ enum SignalStateKind {
     SignalledProposalComing = 0,
 
     // Ued ONLY when signal_first(F)==false.
-    HashPossiblyProposed = 3,
+    HashPossiblySubmitted = 3,
 
     HashReceived = 4,
 }
 
 /// This used to be a data-carrying enum on its own, separate from SignalStateKind, NOT containing
-/// SignalStateKind, and carrying the possibly proposed/received hash in its variants. But, then we
+/// SignalStateKind, and carrying the possibly submitted/received hash in its variants. But, then we
 /// couldn't specify its variant integer values without fixing the representation, which would be
 /// limiting.
 #[derive(PartialEq, Eq, Debug)]
@@ -173,16 +181,16 @@ impl<H: Hasher, const F: Flags> SignalledInjectionHasher<H, F> {
     }
     // @TODO if this doesn't optimize away in release, replace with a macro.
     #[inline(always)]
-    fn assert_nothing_written_or_ordinary_hash_or_proposed(&self) {
+    fn assert_nothing_written_or_ordinary_hash_or_submitted(&self) {
         #[cfg(feature = "asserts")]
         {
-            if signal_first(F) {
+            if flags_signal_first(F) {
                 assert!(
                     matches!(
                         self.state.kind,
                         SignalStateKind::NothingWritten | SignalStateKind::WrittenOrdinaryHash
                     ),
-                    "Expecting the state to be NothingWritten or WrittenOrdinaryHash (or HashPossiblyProposed, which is not applicable), but the state was: {:?}",
+                    "Expecting the state to be NothingWritten or WrittenOrdinaryHash (or HashPossiblySubmitted, which is not applicable), but the state was: {:?}",
                     self.state
                 );
             } else {
@@ -191,9 +199,9 @@ impl<H: Hasher, const F: Flags> SignalledInjectionHasher<H, F> {
                         self.state.kind,
                         SignalStateKind::NothingWritten
                             | SignalStateKind::WrittenOrdinaryHash
-                            | SignalStateKind::HashPossiblyProposed
+                            | SignalStateKind::HashPossiblySubmitted
                     ),
-                    "Expecting the state to be NothingWritten or WrittenOrdinaryHash or HashPossiblyProposed, but the state was: {:?}",
+                    "Expecting the state to be NothingWritten or WrittenOrdinaryHash or HashPossiblySubmitted, but the state was: {:?}",
                     self.state
                 );
             }
@@ -206,7 +214,7 @@ impl<H: Hasher, const F: Flags> Hasher for SignalledInjectionHasher<H, F> {
         if self.state.kind == SignalStateKind::HashReceived {
             self.state.hash
         } else {
-            self.assert_nothing_written_or_ordinary_hash_or_proposed();
+            self.assert_nothing_written_or_ordinary_hash_or_submitted();
             self.hasher.finish()
         }
     }
@@ -214,31 +222,31 @@ impl<H: Hasher, const F: Flags> Hasher for SignalledInjectionHasher<H, F> {
     /// to `write_length_prefix` and `write_u64` would when signalling.
     #[inline]
     fn write(&mut self, bytes: &[u8]) {
-        self.assert_nothing_written_or_ordinary_hash_or_proposed();
+        self.assert_nothing_written_or_ordinary_hash_or_submitted();
         self.hasher.write(bytes);
         self.written_ordinary_hash();
     }
 
     #[inline]
     fn write_u8(&mut self, i: u8) {
-        self.assert_nothing_written_or_ordinary_hash_or_proposed();
+        self.assert_nothing_written_or_ordinary_hash_or_submitted();
         self.hasher.write_u8(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_u16(&mut self, i: u16) {
-        self.assert_nothing_written_or_ordinary_hash_or_proposed();
+        self.assert_nothing_written_or_ordinary_hash_or_submitted();
         self.hasher.write_u16(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_u32(&mut self, i: u32) {
-        self.assert_nothing_written_or_ordinary_hash_or_proposed();
+        self.assert_nothing_written_or_ordinary_hash_or_submitted();
         self.hasher.write_u32(i);
         self.written_ordinary_hash();
     }
     fn write_u64(&mut self, i: u64) {
-        if signal_first(F) {
+        if flags_signal_first(F) {
             if self.state.kind == SignalStateKind::SignalledProposalComing {
                 self.state = SignalState::new(SignalStateKind::HashReceived, i);
             } else {
@@ -247,8 +255,8 @@ impl<H: Hasher, const F: Flags> Hasher for SignalledInjectionHasher<H, F> {
                 self.written_ordinary_hash();
             }
         } else {
-            self.assert_nothing_written_or_ordinary_hash_or_proposed();
-            self.state = SignalState::new(SignalStateKind::HashPossiblyProposed, i);
+            self.assert_nothing_written_or_ordinary_hash_or_submitted();
+            self.state = SignalState::new(SignalStateKind::HashPossiblySubmitted, i);
             // If we are indeed signalling, then the compiler can optimize the following away
             // (thanks to generics):
             self.hasher.write_u64(i);
@@ -256,54 +264,54 @@ impl<H: Hasher, const F: Flags> Hasher for SignalledInjectionHasher<H, F> {
     }
     #[inline]
     fn write_u128(&mut self, i: u128) {
-        self.assert_nothing_written_or_ordinary_hash_or_proposed();
+        self.assert_nothing_written_or_ordinary_hash_or_submitted();
         self.hasher.write_u128(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_usize(&mut self, i: usize) {
-        self.assert_nothing_written_or_ordinary_hash_or_proposed();
+        self.assert_nothing_written_or_ordinary_hash_or_submitted();
         self.hasher.write_usize(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_i8(&mut self, i: i8) {
-        self.assert_nothing_written_or_ordinary_hash_or_proposed();
+        self.assert_nothing_written_or_ordinary_hash_or_submitted();
         self.hasher.write_i8(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_i16(&mut self, i: i16) {
-        self.assert_nothing_written_or_ordinary_hash_or_proposed();
+        self.assert_nothing_written_or_ordinary_hash_or_submitted();
         self.hasher.write_i16(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_i32(&mut self, i: i32) {
-        self.assert_nothing_written_or_ordinary_hash_or_proposed();
+        self.assert_nothing_written_or_ordinary_hash_or_submitted();
         self.hasher.write_i32(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_i64(&mut self, i: i64) {
-        self.assert_nothing_written_or_ordinary_hash_or_proposed();
+        self.assert_nothing_written_or_ordinary_hash_or_submitted();
         self.hasher.write_i64(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_i128(&mut self, i: i128) {
-        self.assert_nothing_written_or_ordinary_hash_or_proposed();
+        self.assert_nothing_written_or_ordinary_hash_or_submitted();
         self.hasher.write_i128(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_isize(&mut self, i: isize) {
-        self.assert_nothing_written_or_ordinary_hash_or_proposed();
+        self.assert_nothing_written_or_ordinary_hash_or_submitted();
         self.hasher.write_isize(i);
         self.written_ordinary_hash();
     }
     fn write_length_prefix(&mut self, len: usize) {
-        if signal_first(F) {
+        if flags_signal_first(F) {
             if len == SIGNALLED_LENGTH_PREFIX {
                 self.assert_nothing_written();
                 self.state.kind = SignalStateKind::SignalledProposalComing;
@@ -322,13 +330,13 @@ impl<H: Hasher, const F: Flags> Hasher for SignalledInjectionHasher<H, F> {
             }
         } else {
             if len == SIGNALLED_LENGTH_PREFIX {
-                if self.state.kind == SignalStateKind::HashPossiblyProposed {
+                if self.state.kind == SignalStateKind::HashPossiblySubmitted {
                     self.state.kind = SignalStateKind::HashReceived;
                 } else {
                     #[cfg(feature = "asserts")]
                     assert!(
                         false,
-                        "Expected state HashPossiblyProposed, but it was {:?}.",
+                        "Expected state HashPossiblySubmitted, but it was {:?}.",
                         self.state
                     );
 
@@ -344,7 +352,7 @@ impl<H: Hasher, const F: Flags> Hasher for SignalledInjectionHasher<H, F> {
                     assert_ne!(len, _CHECKED_SIGNAL_FIRST);
                 }
 
-                self.assert_nothing_written_or_ordinary_hash_or_proposed();
+                self.assert_nothing_written_or_ordinary_hash_or_submitted();
                 self.hasher.write_length_prefix(len);
                 self.written_ordinary_hash();
             }
@@ -353,7 +361,7 @@ impl<H: Hasher, const F: Flags> Hasher for SignalledInjectionHasher<H, F> {
 
     #[inline]
     fn write_str(&mut self, s: &str) {
-        self.assert_nothing_written_or_ordinary_hash_or_proposed();
+        self.assert_nothing_written_or_ordinary_hash_or_submitted();
         self.hasher.write_str(s);
         self.written_ordinary_hash();
     }

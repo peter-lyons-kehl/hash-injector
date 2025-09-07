@@ -51,7 +51,7 @@ adt-const-params = []
 # NOT allowed:
 #default = [                    "asserts",                           "injector-checks-same-flow"]
 
-# default = [                    "asserts", "injector-checks-finish", "injector-checks-same-flow"]
+#default = [                    "asserts", "injector-checks-finish", "injector-checks-same-flow"]
 
 #default = ["adt-const-params", "asserts"]
 #default = ["adt-const-params", "asserts", "injector-checks-finish"]
