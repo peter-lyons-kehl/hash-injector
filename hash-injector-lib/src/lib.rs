@@ -1,8 +1,11 @@
 #![no_std]
 #![feature(hasher_prefixfree_extras)]
-#![feature(adt_const_params)]
+#![cfg_attr(feature = "adt-const-params", feature(adt_const_params))]
+//#![feature(adt_const_params)]
 
 use core::hash::{BuildHasher, Hasher};
+#[cfg(feature = "adt-const-params")]
+use core::marker::ConstParamTy;
 
 #[cfg(all(
     feature = "injector-checks-same-flow",
@@ -19,6 +22,35 @@ const SIGNALLED_LENGTH_PREFIX: usize = usize::MAX;
 const _CHECKED_SIGNAL_FIRST: usize = usize::MAX - 1;
 /// Used only when feature injector-checks-same-flow is enabled.
 const _CHECKED_STANDARD_FLOW: usize = usize::MAX - 2;
+
+// If we ever have more than one flag, then change this into e.g. u8.
+/// Type for const generic parameter `F`.
+#[cfg(not(feature = "adt-const-params"))]
+pub type Flags = bool;
+/// Type for const generic parameter `F`.
+#[cfg(feature = "adt-const-params")]
+#[derive(ConstParamTy, Clone, Copy, PartialEq, Eq)]
+pub struct Flags {
+    signal_first: bool,
+}
+pub const fn new_signal_first(signal_first: bool) -> Flags {
+    #[cfg(not(feature = "adt-const-params"))]
+    {
+        signal_first
+    }
+    #[cfg(feature = "adt-const-params")]
+    Flags { signal_first }
+}
+const fn signal_first(flags: Flags) -> bool {
+    #[cfg(not(feature = "adt-const-params"))]
+    {
+        flags
+    }
+    #[cfg(feature = "adt-const-params")]
+    {
+        flags.signal_first
+    }
+}
 
 /// For use with [SignalledInjectionHasher] `created by [SignalledInjectionBuildHasher].
 ///
@@ -38,10 +70,10 @@ const _CHECKED_STANDARD_FLOW: usize = usize::MAX - 2;
 ///
 /// Extra validation of signalling in the user's [core::hash::Hash] implementation is done ONLY in
 /// when built with `asserts` feature.
-pub fn signal_inject_hash<H: Hasher, const SIGNAL_FIRST: bool>(hasher: &mut H, hash: u64) {
+pub fn signal_inject_hash<H: Hasher, const F: Flags>(hasher: &mut H, hash: u64) {
     // The order of operations is intentionally different for SIGNAL_FIRST. This (hopefully) helps us
     // notice any logical errors or opportunities for improvement in this module earlier.
-    if SIGNAL_FIRST {
+    if signal_first(F) {
         hasher.write_length_prefix(SIGNALLED_LENGTH_PREFIX);
         hasher.write_u64(hash);
     } else {
@@ -54,7 +86,7 @@ pub fn signal_inject_hash<H: Hasher, const SIGNAL_FIRST: bool>(hasher: &mut H, h
     assert_eq!(hasher.finish(), hash);
 
     #[cfg(feature = "injector-checks-same-flow")]
-    if SIGNAL_FIRST {
+    if signal_first(F) {
         hasher.write_length_prefix(_CHECKED_SIGNAL_FIRST);
     } else {
         hasher.write_length_prefix(_CHECKED_STANDARD_FLOW);
@@ -68,14 +100,14 @@ pub fn signal_inject_hash<H: Hasher, const SIGNAL_FIRST: bool>(hasher: &mut H, h
 #[derive(PartialEq, Eq, Debug)]
 enum SignalStateKind {
     NothingWritten = 1,
-    /// Ordinary hash (or its part) written
+    /// Ordinary hash (or its part) has been written
     WrittenOrdinaryHash = 2,
 
-    // Set to zero, so as to speed up write_u64(,,,) when SIGNAL_FIRST=true. Used ONLY when
-    // SIGNAL_FIRST=true.
+    // Set to zero, so as to speed up write_u64(,,,) when signal_first(F)==true. Used ONLY when
+    // signal_first(F)==true.
     SignalledProposalComing = 0,
 
-    // Ued ONLY when SIGNAL_FIRST=false.
+    // Ued ONLY when signal_first(F)==false.
     HashPossiblyProposed = 3,
 
     HashReceived = 4,
@@ -98,11 +130,11 @@ impl SignalState {
     }
 }
 
-pub struct SignalledInjectionHasher<H: Hasher, const SIGNAL_FIRST: bool> {
+pub struct SignalledInjectionHasher<H: Hasher, const F: Flags> {
     hasher: H,
     state: SignalState,
 }
-impl<H: Hasher, const SIGNAL_FIRST: bool> SignalledInjectionHasher<H, SIGNAL_FIRST> {
+impl<H: Hasher, const F: Flags> SignalledInjectionHasher<H, F> {
     #[inline]
     fn new(hasher: H) -> Self {
         Self {
@@ -144,7 +176,7 @@ impl<H: Hasher, const SIGNAL_FIRST: bool> SignalledInjectionHasher<H, SIGNAL_FIR
     fn assert_nothing_written_or_ordinary_hash_or_proposed(&self) {
         #[cfg(feature = "asserts")]
         {
-            if SIGNAL_FIRST {
+            if signal_first(F) {
                 assert!(
                     matches!(
                         self.state.kind,
@@ -168,7 +200,7 @@ impl<H: Hasher, const SIGNAL_FIRST: bool> SignalledInjectionHasher<H, SIGNAL_FIR
         }
     }
 }
-impl<H: Hasher, const SIGNAL_FIRST: bool> Hasher for SignalledInjectionHasher<H, SIGNAL_FIRST> {
+impl<H: Hasher, const F: Flags> Hasher for SignalledInjectionHasher<H, F> {
     #[inline]
     fn finish(&self) -> u64 {
         if self.state.kind == SignalStateKind::HashReceived {
@@ -206,7 +238,7 @@ impl<H: Hasher, const SIGNAL_FIRST: bool> Hasher for SignalledInjectionHasher<H,
         self.written_ordinary_hash();
     }
     fn write_u64(&mut self, i: u64) {
-        if SIGNAL_FIRST {
+        if signal_first(F) {
             if self.state.kind == SignalStateKind::SignalledProposalComing {
                 self.state = SignalState::new(SignalStateKind::HashReceived, i);
             } else {
@@ -271,7 +303,7 @@ impl<H: Hasher, const SIGNAL_FIRST: bool> Hasher for SignalledInjectionHasher<H,
         self.written_ordinary_hash();
     }
     fn write_length_prefix(&mut self, len: usize) {
-        if SIGNAL_FIRST {
+        if signal_first(F) {
             if len == SIGNALLED_LENGTH_PREFIX {
                 self.assert_nothing_written();
                 self.state.kind = SignalStateKind::SignalledProposalComing;
@@ -327,24 +359,18 @@ impl<H: Hasher, const SIGNAL_FIRST: bool> Hasher for SignalledInjectionHasher<H,
     }
 }
 
-pub struct SignalledInjectionBuildHasher<
-    H: Hasher,
-    B: BuildHasher<Hasher = H>,
-    const SIGNAL_FIRST: bool,
-> {
+pub struct SignalledInjectionBuildHasher<H: Hasher, B: BuildHasher<Hasher = H>, const F: Flags> {
     build: B,
 }
-impl<H: Hasher, B: BuildHasher<Hasher = H>, const SIGNAL_FIRST: bool>
-    SignalledInjectionBuildHasher<H, B, SIGNAL_FIRST>
-{
+impl<H: Hasher, B: BuildHasher<Hasher = H>, const F: Flags> SignalledInjectionBuildHasher<H, B, F> {
     pub fn new(build: B) -> Self {
         Self { build }
     }
 }
-impl<H: Hasher, B: BuildHasher<Hasher = H>, const SIGNAL_FIRST: bool> BuildHasher
-    for SignalledInjectionBuildHasher<H, B, SIGNAL_FIRST>
+impl<H: Hasher, B: BuildHasher<Hasher = H>, const F: Flags> BuildHasher
+    for SignalledInjectionBuildHasher<H, B, F>
 {
-    type Hasher = SignalledInjectionHasher<H, SIGNAL_FIRST>;
+    type Hasher = SignalledInjectionHasher<H, F>;
 
     // Required method
     fn build_hasher(&self) -> Self::Hasher {

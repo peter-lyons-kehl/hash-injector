@@ -19,12 +19,13 @@ keywords = ["cache", "lru", "hashmap", "data-structures"]
 unexpected_cfgs = { level = "forbid"}
 
 [features]
+
 # Expensive
 asserts = []
 
-# Use to check that the Hasher is (or behaves like) `SignalledInjectionHasher`. Use only if the types
-# that inject hashes (that is, types whose hash(...) calls `signal_inject_hash()`), are never to be
-# used with any incompatible Hasher.
+# Use to check that the Hasher is (or behaves like) `SignalledInjectionHasher`. Use only if the
+# types that inject hashes (that is, types whose hash(...) calls `signal_inject_hash()`), are never
+# to be used with any incompatible Hasher.
 #
 # Expensive depending on
 # - the underlying Hasher (its `finish(self)`), or
@@ -32,18 +33,32 @@ asserts = []
 #   multiple.
 injector-checks-finish = []
 
-# Check that SIGNAL_FIRST const generic is the same between `signal_inject_hash(...)` and
+# Check that signal)first(F) for const generic F is the same between `signal_inject_hash(...)` and
 # `SignalledInjectionHasher`.
 #
 # Use ONLY if injector-checks-finish is enabled, too.
 injector-checks-same-flow = []
 
-#default = ["asserts"]
-#default = ["asserts", "injector-checks-finish"]
+# Whether to use a higher level type for the const generic parameter. If enabled, currently it
+# requires nightly toolchain.
+adt-const-params = []
+
+#default = [                    "asserts"]
+#default = [                    "asserts", "injector-checks-finish"]
 
 # NOT allowed:
-#default = [                                     "injector-checks-same-flow"]
+#default = [                                                         "injector-checks-same-flow"]
 # NOT allowed:
-#default = ["asserts",                           "injector-checks-same-flow"]
+#default = [                    "asserts",                           "injector-checks-same-flow"]
 
-#default = ["asserts", "injector-checks-finish", "injector-checks-same-flow"]
+# default = [                    "asserts", "injector-checks-finish", "injector-checks-same-flow"]
+
+#default = ["adt-const-params", "asserts"]
+#default = ["adt-const-params", "asserts", "injector-checks-finish"]
+
+# NOT allowed:
+#default = ["adt-const-params",                                      "injector-checks-same-flow"]
+# NOT allowed:
+#default = ["adt-const-params", "asserts",                           "injector-checks-same-flow"]
+
+#default = ["adt-const-params", "asserts", "injector-checks-finish", "injector-checks-same-flow"]
