@@ -9,9 +9,13 @@ rust-version = "1.85.0"
 authors = ["Peter Lyons Kehl<peter.kehl@gmail.com>"]
 description = "Hasher+BuildHasher to inject particular hash"
 
-categories = ["algorithms", "caching", "data-structures"]
+categories = ["algorithms", "data-structures", "no-std", "rust-patterns"]
 
 keywords = ["cache", "lru", "hashmap", "data-structures"]
+
+repository = "https://github.com/peter-lyons-kehl/hash-injector"
+homepage = "https://github.com/peter-lyons-kehl/hash-injector"
+readme = "../README.md"
 
 [dependencies]
 

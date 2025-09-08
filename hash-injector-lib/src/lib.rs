@@ -1,7 +1,7 @@
+#![doc = include_str!("../../README.md")]
 #![no_std]
 #![feature(hasher_prefixfree_extras)]
 #![cfg_attr(feature = "adt-const-params", feature(adt_const_params))]
-//#![feature(adt_const_params)]
 
 use core::hash::{BuildHasher, Hasher};
 #[cfg(feature = "adt-const-params")]
@@ -23,14 +23,20 @@ const _CHECKED_SIGNAL_FIRST: usize = usize::MAX - 1;
 /// Used only when feature injector-checks-same-flow is enabled.
 const _CHECKED_STANDARD_FLOW: usize = usize::MAX - 2;
 
+/// An enum-like Type for const generic parameter `F`. Use `new_flags_xxx` functions to create the
+/// values.
+///
+/// Do not compare with/store as/pass as values of other types - the actual implementation of the
+/// type is subject to change.
+pub type Flags = FlagsImpl;
+
 // If we ever have more than one flag, then change this into e.g. u8.
-/// Type for const generic parameter `F`.
 #[cfg(not(feature = "adt-const-params"))]
-pub type Flags = bool;
+type FlagsImpl = bool;
 /// Type for const generic parameter `F`.
 #[cfg(feature = "adt-const-params")]
 #[derive(ConstParamTy, Clone, Copy, PartialEq, Eq)]
-pub struct Flags {
+pub struct FlagsImpl {
     signal_first: bool,
 }
 pub const fn new_flags_signal_first() -> Flags {
@@ -47,7 +53,9 @@ pub const fn new_flags_submit_first() -> Flags {
         false
     }
     #[cfg(feature = "adt-const-params")]
-    Flags { signal_first: false }
+    Flags {
+        signal_first: false,
+    }
 }
 const fn flags_signal_first(flags: Flags) -> bool {
     #[cfg(not(feature = "adt-const-params"))]
@@ -219,7 +227,7 @@ impl<H: Hasher, const F: Flags> Hasher for SignalledInjectionHasher<H, F> {
         }
     }
     /// This does NOT signal, even if you handed it the same bytes as [`signal_inject_hash`] passes
-    /// to `write_length_prefix` and `write_u64` would when signalling.
+    /// through `write_length_prefix` and `write_u64` when signalling.
     #[inline]
     fn write(&mut self, bytes: &[u8]) {
         self.assert_nothing_written_or_ordinary_hash_or_submitted();
@@ -257,8 +265,11 @@ impl<H: Hasher, const F: Flags> Hasher for SignalledInjectionHasher<H, F> {
         } else {
             self.assert_nothing_written_or_ordinary_hash_or_submitted();
             self.state = SignalState::new(SignalStateKind::HashPossiblySubmitted, i);
-            // If we are indeed signalling, then the compiler can optimize the following away
-            // (thanks to generics):
+            // If we are indeed signalling, then after the following write_u64(...) the value
+            // written to the underlying Hasher will NOT be used, because finish(&self) then returns
+            // the injected hash - instead of calling the underlying Hasher's finish(). So, the
+            // compiler can optimize the following call away (thanks to Hasher objects being passed
+            // by generic reference - instead of a &dyn trait reference):
             self.hasher.write_u64(i);
         }
     }
