@@ -11,7 +11,7 @@ description = "Hasher+BuildHasher to inject particular hash"
 
 categories = ["algorithms", "data-structures", "no-std", "rust-patterns"]
 
-keywords = ["cache", "lru", "hashmap", "data-structures"]
+keywords = ["cache", "lru", "hashmap", "xrandata-structures"]
 
 repository = "https://github.com/peter-lyons-kehl/hash-injector"
 homepage = "https://github.com/peter-lyons-kehl/hash-injector"
