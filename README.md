@@ -15,8 +15,8 @@ example, )
 ### Problem
 
 When a Rust type implements (or derives)
-[core::hash::Hash](https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html), `Hash` trait visits
-the fields (recursively by default) and collects their primitive values or their byte
+[core::hash::Hash](https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html) trait, it visits its
+value-forming fields (recursively by default) and collects their primitive values or their byte
 representation.
 
 The actual hash value also depends on the initial state (ideally randomness-based state) of
