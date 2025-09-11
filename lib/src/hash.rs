@@ -376,10 +376,16 @@ impl<H: Hasher, const F: InjectionFlags> Hasher for SignalledInjectionHasher<H, 
     }
 }
 
-pub struct SignalledInjectionBuildHasher<H: Hasher, B: BuildHasher<Hasher = H>, const F: InjectionFlags> {
+pub struct SignalledInjectionBuildHasher<
+    H: Hasher,
+    B: BuildHasher<Hasher = H>,
+    const F: InjectionFlags,
+> {
     build: B,
 }
-impl<H: Hasher, B: BuildHasher<Hasher = H>, const F: InjectionFlags> SignalledInjectionBuildHasher<H, B, F> {
+impl<H: Hasher, B: BuildHasher<Hasher = H>, const F: InjectionFlags>
+    SignalledInjectionBuildHasher<H, B, F>
+{
     pub fn new(build: B) -> Self {
         Self { build }
     }

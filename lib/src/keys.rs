@@ -10,6 +10,8 @@ use core::ops::{Deref, DerefMut};
 // tertiary quaternary
 /// Implementation detail only: For now this is only `bool`, and it indicates whether
 /// [core::cmp::PartialEq] implementation should compare `hash` field before comparing `p` field.
+/// That can shortcut unnecessary comparison.
+///
 /// Use `true` if `P` is larger/more complex than `u64`.
 pub type KeyFlags = KeyFlagsImpl;
 
@@ -21,12 +23,32 @@ type KeyFlagsImpl = bool;
 /// Type for const generic parameter `KF`.
 #[derive(ConstParamTy, Clone, Copy, PartialEq, Eq)]
 pub struct KeyFlagsImpl {
-    compare_hash_first: bool,
+    eq_involves_hash: bool,
+}
+pub const fn new_flags_eq_includes_hash() -> KeyFlags {
+    #[cfg(not(feature = "adt-const-params"))]
+    {
+        true
+    }
+    #[cfg(feature = "adt-const-params")]
+    KeyFlags {
+        eq_involves_hash: true,
+    }
+}
+pub const fn new_flags_eq_excludes_hash() -> KeyFlags {
+    #[cfg(not(feature = "adt-const-params"))]
+    {
+        false
+    }
+    #[cfg(feature = "adt-const-params")]
+    KeyFlags {
+        eq_involves_hash: false,
+    }
 }
 
 #[derive(Eq, Clone, Copy, Debug)]
 #[non_exhaustive]
-pub struct Primary<P, const IF: InjectionFlags/* , const KF: KeyFlags*/> {
+pub struct Primary<P, const IF: InjectionFlags, const KF: KeyFlags> {
     /// `hash` is listed before `p`, so that it can short-circuit the derived [PartialEq]
     /// implementation by comparing `hash` first.
     ///
@@ -34,7 +56,7 @@ pub struct Primary<P, const IF: InjectionFlags/* , const KF: KeyFlags*/> {
     pub hash: u64,
     pub p: P,
 }
-impl<P: Hash, const IF: InjectionFlags> Primary<P, IF> {
+impl<P: Hash, const IF: InjectionFlags, const KF: KeyFlags> Primary<P, IF, KF> {
     pub fn new(p: P, hash: u64) -> Self {
         Self { p, hash }
     }
@@ -44,7 +66,7 @@ impl<P: Hash, const IF: InjectionFlags> Primary<P, IF> {
         Self::new(key, h.finish())
     }
 }
-impl<P: PartialEq, const IF: InjectionFlags> PartialEq for Primary<P, IF> {
+impl<P: PartialEq, const IF: InjectionFlags, const KF: KeyFlags> PartialEq for Primary<P, IF, KF> {
     fn eq(&self, other: &Self) -> bool {
         self.p == other.p
     }
@@ -52,19 +74,19 @@ impl<P: PartialEq, const IF: InjectionFlags> PartialEq for Primary<P, IF> {
         self.p != other.p
     }
 }
-impl<P: Hash, const IF: InjectionFlags> Hash for Primary<P, IF> {
+impl<P: Hash, const IF: InjectionFlags, const KF: KeyFlags> Hash for Primary<P, IF, KF> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         crate::hash::signal_inject_hash::<H, IF>(state, self.hash);
     }
 }
-impl<P, const IF: InjectionFlags> Deref for Primary<P, IF> {
+impl<P, const IF: InjectionFlags, const KF: KeyFlags> Deref for Primary<P, IF, KF> {
     type Target = P;
 
     fn deref(&self) -> &Self::Target {
         &self.p
     }
 }
-impl<P, const IF: InjectionFlags> DerefMut for Primary<P, IF> {
+impl<P, const IF: InjectionFlags, const KF: KeyFlags> DerefMut for Primary<P, IF, KF> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.p
     }
@@ -72,16 +94,18 @@ impl<P, const IF: InjectionFlags> DerefMut for Primary<P, IF> {
 
 #[derive(Clone, Copy, Debug, Eq)]
 #[non_exhaustive]
-pub struct Secondary<S, const IF: InjectionFlags> {
+pub struct Secondary<S, const IF: InjectionFlags, const KF: KeyFlags> {
     pub hash: u64,
     pub s: S,
 }
-impl<S, const IF: InjectionFlags> Secondary<S, IF> {
+impl<S, const IF: InjectionFlags, const KF: KeyFlags> Secondary<S, IF, KF> {
     pub fn new(s: S, hash: u64) -> Self {
         Self { s, hash }
     }
 }
-impl<S: PartialEq, const IF: InjectionFlags> PartialEq for Secondary<S, IF> {
+impl<S: PartialEq, const IF: InjectionFlags, const KF: KeyFlags> PartialEq
+    for Secondary<S, IF, KF>
+{
     fn eq(&self, other: &Self) -> bool {
         self.s == other.s
     }
@@ -89,7 +113,9 @@ impl<S: PartialEq, const IF: InjectionFlags> PartialEq for Secondary<S, IF> {
         self.s != other.s
     }
 }
-impl<S: PartialOrd, const IF: InjectionFlags> PartialOrd for Secondary<S, IF> {
+impl<S: PartialOrd, const IF: InjectionFlags, const KF: KeyFlags> PartialOrd
+    for Secondary<S, IF, KF>
+{
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.s.partial_cmp(&other.s)
     }
@@ -106,24 +132,24 @@ impl<S: PartialOrd, const IF: InjectionFlags> PartialOrd for Secondary<S, IF> {
         self.s.lt(&other.s)
     }
 }
-impl<S: Ord, const IF: InjectionFlags> Ord for Secondary<S, IF> {
+impl<S: Ord, const IF: InjectionFlags, const KF: KeyFlags> Ord for Secondary<S, IF, KF> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.s.cmp(&other.s)
     }
 }
-impl<S: Hash, const IF: InjectionFlags> Hash for Secondary<S, IF> {
+impl<S: Hash, const IF: InjectionFlags, const KF: KeyFlags> Hash for Secondary<S, IF, KF> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         crate::hash::signal_inject_hash::<H, IF>(state, self.hash);
     }
 }
-impl<S, const IF: InjectionFlags> Deref for Secondary<S, IF> {
+impl<S, const IF: InjectionFlags, const KF: KeyFlags> Deref for Secondary<S, IF, KF> {
     type Target = S;
 
     fn deref(&self) -> &Self::Target {
         &self.s
     }
 }
-impl<S, const IF: InjectionFlags> DerefMut for Secondary<S, IF> {
+impl<S, const IF: InjectionFlags, const KF: KeyFlags> DerefMut for Secondary<S, IF, KF> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.s
     }
@@ -132,22 +158,28 @@ impl<S, const IF: InjectionFlags> DerefMut for Secondary<S, IF> {
 /// A bi-modal wrapper. On its own it uses only `ck` part for [PartialEq] and [Hash]. However, see
 /// trait for borrowing as comparable by `idx` part, too.
 #[derive(Clone, Eq, Copy, Debug)]
-pub struct Duality<P, S, const IF: InjectionFlags> {
-    pub pk: Primary<P, IF>,
-    pub sk: Secondary<S, IF>,
+pub struct Duality<P, S, const IF: InjectionFlags, const PKF: KeyFlags, const SKF: KeyFlags> {
+    pub pk: Primary<P, IF, PKF>,
+    pub sk: Secondary<S, IF, SKF>,
 }
-impl<P, S, const IF: InjectionFlags> Duality<P, S, IF> {
-    pub fn new(pk: Primary<P, IF>, sk: Secondary<S, IF>) -> Self {
+impl<P, S, const IF: InjectionFlags, const PKF: KeyFlags, const SKF: KeyFlags>
+    Duality<P, S, IF, PKF, SKF>
+{
+    pub fn new(pk: Primary<P, IF, PKF>, sk: Secondary<S, IF, SKF>) -> Self {
         Self { pk, sk }
     }
 }
 
-impl<P, S, const IF: InjectionFlags> Hash for Duality<P, S, IF> {
+impl<P, S, const IF: InjectionFlags, const PKF: KeyFlags, const SKF: KeyFlags> Hash
+    for Duality<P, S, IF, PKF, SKF>
+{
     fn hash<H: Hasher>(&self, state: &mut H) {
         crate::hash::signal_inject_hash::<H, IF>(state, self.sk.hash);
     }
 }
-impl<P: PartialEq, S, const IF: InjectionFlags> PartialEq for Duality<P, S, IF> {
+impl<P: PartialEq, S, const IF: InjectionFlags, const PKF: KeyFlags, const SKF: KeyFlags> PartialEq
+    for Duality<P, S, IF, PKF, SKF>
+{
     fn eq(&self, other: &Self) -> bool {
         self.pk == other.pk
     }
@@ -156,13 +188,17 @@ impl<P: PartialEq, S, const IF: InjectionFlags> PartialEq for Duality<P, S, IF> 
     }
 }
 
-impl<P, S, const IF: InjectionFlags> Borrow<Primary<P, IF>> for Duality<P, S, IF> {
-    fn borrow(&self) -> &Primary<P, IF> {
+impl<P, S, const IF: InjectionFlags, const PKF: KeyFlags, const SKF: KeyFlags>
+    Borrow<Primary<P, IF, PKF>> for Duality<P, S, IF, PKF, SKF>
+{
+    fn borrow(&self) -> &Primary<P, IF, PKF> {
         &self.pk
     }
 }
-impl<P, S, const IF: InjectionFlags> Borrow<Secondary<S, IF>> for Duality<P, S, IF> {
-    fn borrow(&self) -> &Secondary<S, IF> {
+impl<P, S, const IF: InjectionFlags, const PKF: KeyFlags, const SKF: KeyFlags>
+    Borrow<Secondary<S, IF, SKF>> for Duality<P, S, IF, PKF, SKF>
+{
+    fn borrow(&self) -> &Secondary<S, IF, SKF> {
         &self.sk
     }
 }
@@ -175,7 +211,9 @@ pub struct PrimaryWrap<P> {
     pub p: P,
 }
 
-impl<'a, P, S, const IF: InjectionFlags> Borrow<PrimaryWrap<P>> for Duality<P, S, IF> {
+impl<'a, P, S, const IF: InjectionFlags, const PKF: KeyFlags, const SKF: KeyFlags>
+    Borrow<PrimaryWrap<P>> for Duality<P, S, IF, PKF, SKF>
+{
     fn borrow(&self) -> &PrimaryWrap<P> {
         unsafe { mem::transmute(&self.pk.p) }
     }
@@ -189,7 +227,9 @@ pub struct SecondaryWrap<S> {
     pub s: S,
 }
 
-impl<'a, P, S, const IF: InjectionFlags> Borrow<SecondaryWrap<P>> for Duality<P, S, IF> {
+impl<'a, P, S, const IF: InjectionFlags, const PKF: KeyFlags, const SKF: KeyFlags>
+    Borrow<SecondaryWrap<P>> for Duality<P, S, IF, PKF, SKF>
+{
     fn borrow(&self) -> &SecondaryWrap<P> {
         unsafe { mem::transmute(&self.sk.s) }
     }
