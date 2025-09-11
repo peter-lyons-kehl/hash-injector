@@ -1,0 +1,8 @@
+[package]
+name = "signal-first"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hash-injector = { path = "../../../lib" }
+tests-shared = { path = "../../../tests-shared"}

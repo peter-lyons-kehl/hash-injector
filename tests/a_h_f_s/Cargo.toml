@@ -1,0 +1,4 @@
+[workspace]
+members = ["signal-first", "submit-first"]
+resolver = "3"
+

@@ -2,6 +2,8 @@ use crate::hash::InjectionFlags;
 use core::borrow::Borrow;
 use core::cmp::Ordering;
 use core::hash::{Hash, Hasher};
+#[cfg(feature = "adt-const-params")]
+use core::marker::ConstParamTy;
 use core::mem;
 use core::ops::{Deref, DerefMut};
 
