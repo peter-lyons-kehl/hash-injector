@@ -24,6 +24,8 @@ unexpected_cfgs = { level = "forbid"}
 
 [features]
 
+# TODO Serde
+
 # Expensive
 asserts = []
 

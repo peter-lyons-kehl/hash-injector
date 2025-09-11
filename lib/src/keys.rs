@@ -27,6 +27,7 @@ type KeyFlagsImpl = bool;
 pub struct KeyFlagsImpl {
     eq_involves_hash: bool,
 }
+
 pub const fn new_flags_eq_includes_hash() -> KeyFlags {
     #[cfg(not(feature = "adt-const-params"))]
     {
@@ -160,6 +161,7 @@ impl<S, const IF: InjectionFlags, const KF: KeyFlags> DerefMut for Secondary<S, 
 /// A bi-modal wrapper. On its own it uses only `ck` part for [PartialEq] and [Hash]. However, see
 /// trait for borrowing as comparable by `idx` part, too.
 #[derive(Clone, Eq, Copy, Debug)]
+#[non_exhaustive]
 pub struct Duality<P, S, const IF: InjectionFlags, const PKF: KeyFlags, const SKF: KeyFlags> {
     pub pk: Primary<P, IF, PKF>,
     pub sk: Secondary<S, IF, SKF>,
@@ -209,10 +211,17 @@ impl<P, S, const IF: InjectionFlags, const PKF: KeyFlags, const SKF: KeyFlags>
 /// `Duality<P, S, F>`, as they could conflict.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(transparent)]
+#[non_exhaustive]
 pub struct PrimaryWrap<P> {
     pub p: P,
 }
-
+impl<P> PrimaryWrap<P> {
+    pub fn new(p: P) -> Self {
+        Self {
+            p
+        }
+    }
+}
 impl<'a, P, S, const IF: InjectionFlags, const PKF: KeyFlags, const SKF: KeyFlags>
     Borrow<PrimaryWrap<P>> for Duality<P, S, IF, PKF, SKF>
 {
@@ -225,10 +234,17 @@ impl<'a, P, S, const IF: InjectionFlags, const PKF: KeyFlags, const SKF: KeyFlag
 /// `Duality<P, S, F>`, as they could conflict.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 #[repr(transparent)]
+#[non_exhaustive]
 pub struct SecondaryWrap<S> {
     pub s: S,
 }
-
+impl<S> SecondaryWrap<S> {
+    pub fn new(s: S) -> Self {
+        Self {
+            s
+        }
+    }
+}
 impl<'a, P, S, const IF: InjectionFlags, const PKF: KeyFlags, const SKF: KeyFlags>
     Borrow<SecondaryWrap<P>> for Duality<P, S, IF, PKF, SKF>
 {
