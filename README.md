@@ -1,16 +1,16 @@
 # hash-injector
 
-## What, why, how to use
+## What, why, how
 
 ### Summary
 
-`hash-injector` is a Rust crate that gives you control to provide/reuse hash values. It allows you
+`hash-injector` is a Rust library that gives you control to provide/reuse hash values. It allows you
 to share hashes between equivalent instances of selected different types. That is not possible by
 Rust's `core::hash` out of the box.
 
 This works even for instances of type(s) that are 1:1 related/respective to instances of the other
-(value-bearing, "primary") type, but they don't carry any value matchable with instances of that
-other type. This is especially suitable for sequential/ordered/generated/unique assigned secondary
+(value-bearing, "primary") type, but they do not carry any value matchable with instances of that
+other type. It is especially suitable for sequential/ordered/generated/unique assigned secondary
 indexes.
 
 ### Problem
@@ -37,10 +37,11 @@ However, Rust does NOT allow a type that implements `Hash` to provide/override i
 directly. Instead, the hash value is calculated by
 [`core::Hash::Hasher::finish()`](https://doc.rust-lang.org/nightly/core/hash/trait.Hasher.html#tymethod.finish)
 method, which is NOT called by the object being hashed, but by the code that requested the hash (for
-example, `HashMap`). While that protects user types from mistakes, and it's secure by default, it
+example, `HashMap`). While that protects user types from mistakes, and it is secure by default, it
 does limit some special cases.
 
 ## How to use - overview
+
 How? You choose one type (value-bearing, "primary" type, not a secondary index) whose hash is
 collected in the usual way (by `#[derive(core::hash::Hash)]` or by standard implementation of
 [`core::hash::Hash`](https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html)). Its instances
@@ -61,6 +62,7 @@ default `BuildHasher`:
 [`std::hash::RandomState`](https://doc.rust-lang.org/nightly/std/hash/struct.RandomState.html)).
 
 ### Solution
+
 `hash-injector` provides a
 [core::hash::BuildHasher](https://doc.rust-lang.org/nightly/core/hash/trait.BuildHasher.html)
 adapter, with its
@@ -69,7 +71,7 @@ adapter, with its
 
 - standard (and default): When hashing ordinary types (`core/std/3rd party`), this `Hasher` sends
   the data (collected by `Hash` trait) to the underlying `Hasher`, and it returns the hash generated
-  by it, so all behaves as per usual. It's Hash DoS-resistant (if the underlying
+  by it, so all behaves as per usual. It is Hash DoS-resistant (if the underlying
   `BuildHasher`/`Hasher` is Hash DoS-proof).
 
 - specialized: The adapter allows custom types, selected by you, to inject the hash - rather than
@@ -113,14 +115,14 @@ happen only for ZST's, because such array/slice lengths are not available for no
 [`core::primitive::isize::MAX`](https://doc.rust-lang.org/nightly/core/primitive.isize.html#associatedconstant.MAX)
 instead).
 
-Since ZST's don't carry any data, it's fair to assume that they don't write anything in their
+Since ZST's do not carry any data, it is fair to assume that they do not write anything in their
 `Hash::hash(...)` - like [hash(...) for
 ()](https://doc.rust-lang.org/nightly/src/core/hash/mod.rs.html#930-936). Well behaving ZST's could
 write some constants, but the hash would still have the same zero entropy/quality. They could write
 some thread-specific (Thread-local-based) constant values (if the ZST is
 [`!core::marker::Send`](https://doc.rust-lang.org/nightly/core/marker/trait.Send.html)), and the
 current Hash implementation for slices does honor that - but then all their instances (in the same
-thread) are equal anyway, so the entropy/quality (within the thread that they're bound/limited to)
+thread) are equal anyway, so the entropy/quality (within the thread that they are bound/limited to)
 is zero again.
 
 ### Compatibility with underlying Hashers and BuildHashers

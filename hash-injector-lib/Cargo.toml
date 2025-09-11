@@ -27,6 +27,9 @@ unexpected_cfgs = { level = "forbid"}
 # Expensive
 asserts = []
 
+# Whether to use a higher level type for the const generic parameter.
+adt-const-params = []
+
 # Use to check that the Hasher is (or behaves like) `SignalledInjectionHasher`. Use only if the
 # types that inject hashes (that is, types whose hash(...) calls `signal_inject_hash()`), are never
 # to be used with any incompatible Hasher.
@@ -42,10 +45,6 @@ injector-checks-finish = []
 #
 # Use ONLY if injector-checks-finish is enabled, too.
 injector-checks-same-flow = []
-
-# Whether to use a higher level type for the const generic parameter. If enabled, currently it
-# requires nightly toolchain.
-adt-const-params = []
 
 #default = [                    "asserts"]
 #default = [                    "asserts", "injector-checks-finish"]
