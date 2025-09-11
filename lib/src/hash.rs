@@ -25,36 +25,37 @@ const _CHECKED_STANDARD_FLOW: usize = usize::MAX - 2;
 ///
 /// Do not compare with/store as/pass as values of other types - the actual implementation of the
 /// type is subject to change.
-pub type Flags = FlagsImpl;
+pub type InjectionFlags = InjectionFlagsImpl;
 
 // If we ever have more than one flag, then change this into e.g. u8.
 #[cfg(not(feature = "adt-const-params"))]
-type FlagsImpl = bool;
-/// Type for const generic parameter `F`.
+type InjectionFlagsImpl = bool;
+
 #[cfg(feature = "adt-const-params")]
+/// Type for const generic parameter `F`.
 #[derive(ConstParamTy, Clone, Copy, PartialEq, Eq)]
-pub struct FlagsImpl {
+pub struct InjectionFlagsImpl {
     signal_first: bool,
 }
-pub const fn new_flags_signal_first() -> Flags {
+pub const fn new_flags_signal_first() -> InjectionFlags {
     #[cfg(not(feature = "adt-const-params"))]
     {
         true
     }
     #[cfg(feature = "adt-const-params")]
-    Flags { signal_first: true }
+    InjectionFlags { signal_first: true }
 }
-pub const fn new_flags_submit_first() -> Flags {
+pub const fn new_flags_submit_first() -> InjectionFlags {
     #[cfg(not(feature = "adt-const-params"))]
     {
         false
     }
     #[cfg(feature = "adt-const-params")]
-    Flags {
+    InjectionFlags {
         signal_first: false,
     }
 }
-const fn flags_signal_first(flags: Flags) -> bool {
+const fn flags_signal_first(flags: InjectionFlags) -> bool {
     #[cfg(not(feature = "adt-const-params"))]
     {
         flags
@@ -83,7 +84,7 @@ const fn flags_signal_first(flags: Flags) -> bool {
 ///
 /// Extra validation of signalling in the user's [core::hash::Hash] implementation is done ONLY in
 /// when built with `asserts` feature.
-pub fn signal_inject_hash<H: Hasher, const F: Flags>(hasher: &mut H, hash: u64) {
+pub fn signal_inject_hash<H: Hasher, const F: InjectionFlags>(hasher: &mut H, hash: u64) {
     // The order of operations is intentionally different for SIGNAL_FIRST. This (hopefully) helps us
     // notice any logical errors or opportunities for improvement in this module earlier.
     if flags_signal_first(F) {
@@ -143,11 +144,11 @@ impl SignalState {
     }
 }
 
-pub struct SignalledInjectionHasher<H: Hasher, const F: Flags> {
+pub struct SignalledInjectionHasher<H: Hasher, const F: InjectionFlags> {
     hasher: H,
     state: SignalState,
 }
-impl<H: Hasher, const F: Flags> SignalledInjectionHasher<H, F> {
+impl<H: Hasher, const F: InjectionFlags> SignalledInjectionHasher<H, F> {
     #[inline]
     fn new(hasher: H) -> Self {
         Self {
@@ -213,7 +214,7 @@ impl<H: Hasher, const F: Flags> SignalledInjectionHasher<H, F> {
         }
     }
 }
-impl<H: Hasher, const F: Flags> Hasher for SignalledInjectionHasher<H, F> {
+impl<H: Hasher, const F: InjectionFlags> Hasher for SignalledInjectionHasher<H, F> {
     #[inline]
     fn finish(&self) -> u64 {
         if self.state.kind == SignalStateKind::HashReceived {
@@ -375,15 +376,15 @@ impl<H: Hasher, const F: Flags> Hasher for SignalledInjectionHasher<H, F> {
     }
 }
 
-pub struct SignalledInjectionBuildHasher<H: Hasher, B: BuildHasher<Hasher = H>, const F: Flags> {
+pub struct SignalledInjectionBuildHasher<H: Hasher, B: BuildHasher<Hasher = H>, const F: InjectionFlags> {
     build: B,
 }
-impl<H: Hasher, B: BuildHasher<Hasher = H>, const F: Flags> SignalledInjectionBuildHasher<H, B, F> {
+impl<H: Hasher, B: BuildHasher<Hasher = H>, const F: InjectionFlags> SignalledInjectionBuildHasher<H, B, F> {
     pub fn new(build: B) -> Self {
         Self { build }
     }
 }
-impl<H: Hasher, B: BuildHasher<Hasher = H>, const F: Flags> BuildHasher
+impl<H: Hasher, B: BuildHasher<Hasher = H>, const F: InjectionFlags> BuildHasher
     for SignalledInjectionBuildHasher<H, B, F>
 {
     type Hasher = SignalledInjectionHasher<H, F>;
