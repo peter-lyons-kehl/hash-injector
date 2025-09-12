@@ -285,16 +285,15 @@ impl<'a, P, S, const IF: InjectionFlags, const PKF: KeyFlags, const SKF: KeyFlag
 pub trait Suggested<const IF: InjectionFlags>: Sized {
     type Prim;
     type Sec;
-    const RECOMMENDED_INJECTION_FLAGS: InjectionFlags;
 }
-const IF_SUBMIT_FIRST: InjectionFlags = new_flags_submit_first();
+//const IF_SUBMIT_FIRST: InjectionFlags = new_flags_submit_first();
 impl<const IF: InjectionFlags> Suggested<IF> for u8 {
     type Prim = Primary<u8, { IF }, { new_flags_eq_excludes_hash() }>;
     type Sec = Secondary<u8, { IF }, { new_flags_eq_excludes_hash() }>;
-    const RECOMMENDED_INJECTION_FLAGS: InjectionFlags = IF_SUBMIT_FIRST;
 }
 
 pub type U8Primary<const IF: InjectionFlags> = <u8 as Suggested<IF>>::Prim;
+
 // -||-  U8Secondary
 //----
 /* Less ergonomic alternative:
