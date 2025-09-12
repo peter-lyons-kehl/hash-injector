@@ -149,6 +149,7 @@ const _VERIFY: () = {
     ) {
         panic!();
     }
+    // @TODO this and more
     /*if !SignalState::set_written_ordinary_hash().kind.const_eq(&SignalStateKind::WrittenOrdinaryHash) {
         panic!();
     }*/

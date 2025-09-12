@@ -8,12 +8,12 @@ mod state;
 use state::SignalState;
 
 #[cfg(all(
-    feature = "injector-checks-same-flow",
+    feature = "injector-checks-same-protocol",
     not(feature = "injector-checks-finish")
 ))]
 const _SAME_FLOW_CHECK_REQUIRES_FINISH_CHECK: () = {
     panic!(
-        "Feature injector-checks-same-flow is enabled, but it requires feature injector-checks-finish, too."
+        "Feature injector-checks-same-protocol is enabled, but it requires feature injector-checks-finish, too."
     );
 };
 
@@ -22,9 +22,9 @@ const _SAME_FLOW_CHECK_REQUIRES_FINISH_CHECK: () = {
 const SIGNALLING: usize = usize::MAX;
 
 /// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation submits a hash first (before signalling).
-#[cfg(feature = "injector-checks-same-flow")]
+#[cfg(feature = "injector-checks-same-protocol")]
 const EXPECTING_SUBMIT_FIRST_METHOD: usize = usize::MAX - 2;
-#[cfg(feature = "injector-checks-same-flow")]
+#[cfg(feature = "injector-checks-same-protocol")]
 /// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation signals first (before submitting a hash).
 const EXPECTING_SIGNAL_FIRST_METHOD: usize = usize::MAX - 1;
 
@@ -113,11 +113,11 @@ pub fn signal_inject_hash<H: Hasher, const IF: InjectionFlags>(hasher: &mut H, h
         hasher.write_length_prefix(SIGNALLING);
     }
     // Check that finish() does return the signalled hash. We do this BEFORE
-    // injector-checks-same-flow-based checks (if any).
+    // injector-checks-same-protocol-based checks (if any).
     #[cfg(feature = "injector-checks-finish")]
     assert_eq!(hasher.finish(), hash);
 
-    #[cfg(feature = "injector-checks-same-flow")]
+    #[cfg(feature = "injector-checks-same-protocol")]
     hasher.write_length_prefix(if signal_first(IF) {
         EXPECTING_SIGNAL_FIRST_METHOD
     } else {
@@ -286,7 +286,7 @@ impl<H: Hasher, const IF: InjectionFlags> Hasher for SignalledInjectionHasher<H,
                 self.assert_nothing_written();
                 self.state.set_signalled_proposal_coming(IF);
             } else {
-                #[cfg(feature = "injector-checks-same-flow")]
+                #[cfg(feature = "injector-checks-same-protocol")]
                 {
                     if len == EXPECTING_SIGNAL_FIRST_METHOD {
                         return;
@@ -314,7 +314,7 @@ impl<H: Hasher, const IF: InjectionFlags> Hasher for SignalledInjectionHasher<H,
                     self.written_ordinary_hash();
                 }
             } else {
-                #[cfg(feature = "injector-checks-same-flow")]
+                #[cfg(feature = "injector-checks-same-protocol")]
                 {
                     if len == EXPECTING_SUBMIT_FIRST_METHOD {
                         return;
