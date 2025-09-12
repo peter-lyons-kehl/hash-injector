@@ -29,7 +29,7 @@ unexpected_cfgs = { level = "forbid"}
 # Expensive
 asserts = []
 
-# Whether to use a higher level type for the const generic parameter.
+# Whether to use a higher level type for the const generic parameter type InjectionFlags.
 adt-const-params = []
 
 # Use to check that the Hasher is (or behaves like) `SignalledInjectionHasher`. Use only if the

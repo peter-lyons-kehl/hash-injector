@@ -32,42 +32,42 @@ const EXPECTING_SUBMIT_FIRST_METHOD: usize = usize::MAX - 2;
 /// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation signals first (before submitting a hash).
 const EXPECTING_SIGNAL_FIRST_METHOD: usize = usize::MAX - 1;
 
-/// An enum-like Type for const generic parameter `IF`. Use `new_flags_xxx` functions to create the
+/// An enum-like Type for const generic parameter `PF`. Use `new_flags_xxx` functions to create the
 /// values.
 ///
 /// Do not compare with/store as/pass as values of other types - the actual implementation of the
 /// type is subject to change.
-pub type InjectionFlags = InjectionFlagsImpl;
+pub type ProtocolFlags = ProtocolFlagsImpl;
 
 // If we ever have more than one flag, then change this into e.g. u8.
 #[cfg(not(feature = "adt-const-params"))]
-type InjectionFlagsImpl = bool;
+type ProtocolFlagsImpl = bool;
 
 #[cfg(feature = "adt-const-params")]
 /// Type for const generic parameter `F`.
 #[derive(ConstParamTy, Clone, Copy, PartialEq, Eq)]
-pub struct InjectionFlagsImpl {
+pub struct ProtocolFlagsImpl {
     signal_first: bool,
 }
-pub const fn new_flags_signal_first() -> InjectionFlags {
+pub const fn new_flags_signal_first() -> ProtocolFlags {
     #[cfg(not(feature = "adt-const-params"))]
     {
         true
     }
     #[cfg(feature = "adt-const-params")]
-    InjectionFlags { signal_first: true }
+    ProtocolFlags { signal_first: true }
 }
-pub const fn new_flags_submit_first() -> InjectionFlags {
+pub const fn new_flags_submit_first() -> ProtocolFlags {
     #[cfg(not(feature = "adt-const-params"))]
     {
         false
     }
     #[cfg(feature = "adt-const-params")]
-    InjectionFlags {
+    ProtocolFlags {
         signal_first: false,
     }
 }
-const fn signal_first(flags: InjectionFlags) -> bool {
+const fn signal_first(flags: ProtocolFlags) -> bool {
     #[cfg(not(feature = "adt-const-params"))]
     {
         flags
@@ -77,7 +77,7 @@ const fn signal_first(flags: InjectionFlags) -> bool {
         flags.signal_first
     }
 }
-const fn submit_first(flags: InjectionFlags) -> bool {
+const fn submit_first(flags: ProtocolFlags) -> bool {
     #[cfg(not(feature = "adt-const-params"))]
     {
         !flags
@@ -106,10 +106,10 @@ const fn submit_first(flags: InjectionFlags) -> bool {
 ///
 /// Extra validation of signalling in the user's [core::hash::Hash] implementation is done ONLY in
 /// when built with `asserts` feature.
-pub fn signal_inject_hash<H: Hasher, const IF: InjectionFlags>(hasher: &mut H, hash: u64) {
+pub fn signal_inject_hash<H: Hasher, const PF: ProtocolFlags>(hasher: &mut H, hash: u64) {
     // The order of operations is intentionally different for SIGNAL_FIRST. This (hopefully) helps us
     // notice any logical errors or opportunities for improvement in this module earlier.
-    if signal_first(IF) {
+    if signal_first(PF) {
         hasher.write_length_prefix(SIGNALLING);
         hasher.write_u64(hash);
     } else {
@@ -122,18 +122,18 @@ pub fn signal_inject_hash<H: Hasher, const IF: InjectionFlags>(hasher: &mut H, h
     assert_eq!(hasher.finish(), hash);
 
     #[cfg(feature = "injector-checks-same-protocol")]
-    hasher.write_length_prefix(if signal_first(IF) {
+    hasher.write_length_prefix(if signal_first(PF) {
         EXPECTING_SIGNAL_FIRST_METHOD
     } else {
         EXPECTING_SUBMIT_FIRST_METHOD
     });
 }
 
-pub struct SignalledInjectionHasher<H: Hasher, const IF: InjectionFlags> {
+pub struct SignalledInjectionHasher<H: Hasher, const PF: ProtocolFlags> {
     hasher: H,
     state: SignalState,
 }
-impl<H: Hasher, const IF: InjectionFlags> SignalledInjectionHasher<H, IF> {
+impl<H: Hasher, const PF: ProtocolFlags> SignalledInjectionHasher<H, PF> {
     #[inline]
     const fn new(hasher: H) -> Self {
         Self {
@@ -172,14 +172,14 @@ impl<H: Hasher, const IF: InjectionFlags> SignalledInjectionHasher<H, IF> {
         {
             assert!(
                 self.state
-                    .is_nothing_written_or_ordinary_hash_or_possibly_submitted(IF),
+                    .is_nothing_written_or_ordinary_hash_or_possibly_submitted(PF),
                 "Expecting the state to be NothingWritten or WrittenOrdinaryHash, or HashPossiblySubmitted (if applicable), but the state was: {:?}",
                 self.state
             );
         }
     }
 }
-impl<H: Hasher, const IF: InjectionFlags> Hasher for SignalledInjectionHasher<H, IF> {
+impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, PF> {
     #[inline]
     fn finish(&self) -> u64 {
         if self.state.is_hash_received() {
@@ -217,8 +217,8 @@ impl<H: Hasher, const IF: InjectionFlags> Hasher for SignalledInjectionHasher<H,
         self.written_ordinary_hash();
     }
     fn write_u64(&mut self, i: u64) {
-        if signal_first(IF) {
-            if self.state.is_signalled_proposal_coming(IF) {
+        if signal_first(PF) {
+            if self.state.is_signalled_proposal_coming(PF) {
                 self.state = SignalState::new_hash_received(i);
             } else {
                 self.assert_nothing_written_or_ordinary_hash();
@@ -233,7 +233,7 @@ impl<H: Hasher, const IF: InjectionFlags> Hasher for SignalledInjectionHasher<H,
             // compiler can optimize the following call away (thanks to Hasher objects being passed
             // by generic reference - instead of a &dyn trait reference):
             self.hasher.write_u64(i);
-            self.state = SignalState::new_hash_possibly_submitted(i, IF);
+            self.state = SignalState::new_hash_possibly_submitted(i, PF);
         }
     }
     #[inline]
@@ -285,10 +285,10 @@ impl<H: Hasher, const IF: InjectionFlags> Hasher for SignalledInjectionHasher<H,
         self.written_ordinary_hash();
     }
     fn write_length_prefix(&mut self, len: usize) {
-        if signal_first(IF) {
+        if signal_first(PF) {
             if len == SIGNALLING {
                 self.assert_nothing_written();
-                self.state.set_signalled_proposal_coming(IF);
+                self.state.set_signalled_proposal_coming(PF);
             } else {
                 #[cfg(feature = "injector-checks-same-protocol")]
                 {
@@ -304,7 +304,7 @@ impl<H: Hasher, const IF: InjectionFlags> Hasher for SignalledInjectionHasher<H,
             }
         } else {
             if len == SIGNALLING {
-                if self.state.is_hash_possibly_submitted(IF) {
+                if self.state.is_hash_possibly_submitted(PF) {
                     self.state.set_hash_received();
                 } else {
                     #[cfg(feature = "asserts")]
@@ -344,21 +344,21 @@ impl<H: Hasher, const IF: InjectionFlags> Hasher for SignalledInjectionHasher<H,
 pub struct SignalledInjectionBuildHasher<
     H: Hasher,
     B: BuildHasher<Hasher = H>,
-    const IF: InjectionFlags,
+    const PF: ProtocolFlags,
 > {
     build: B,
 }
-impl<H: Hasher, B: BuildHasher<Hasher = H>, const IF: InjectionFlags>
-    SignalledInjectionBuildHasher<H, B, IF>
+impl<H: Hasher, B: BuildHasher<Hasher = H>, const PF: ProtocolFlags>
+    SignalledInjectionBuildHasher<H, B, PF>
 {
     pub fn new(build: B) -> Self {
         Self { build }
     }
 }
-impl<H: Hasher, B: BuildHasher<Hasher = H>, const IF: InjectionFlags> BuildHasher
-    for SignalledInjectionBuildHasher<H, B, IF>
+impl<H: Hasher, B: BuildHasher<Hasher = H>, const PF: ProtocolFlags> BuildHasher
+    for SignalledInjectionBuildHasher<H, B, PF>
 {
-    type Hasher = SignalledInjectionHasher<H, IF>;
+    type Hasher = SignalledInjectionHasher<H, PF>;
 
     // Required method
     fn build_hasher(&self) -> Self::Hasher {

@@ -1,4 +1,4 @@
-use crate::InjectionFlags;
+use crate::ProtocolFlags;
 
 #[allow(private_interfaces)]
 pub type SignalStateKind = SignalStateKindImpl;
@@ -57,7 +57,7 @@ impl SignalState {
     }
     pub const fn new_hash_possibly_submitted(
         hash: u64,
-        #[allow(non_snake_case)] IF: InjectionFlags,
+        #[allow(non_snake_case)] IF: ProtocolFlags,
     ) -> Self {
         #[cfg(debug_assertions)]
         if crate::signal_first(IF) {
@@ -74,7 +74,7 @@ impl SignalState {
     }
     pub const fn set_signalled_proposal_coming(
         &mut self,
-        #[allow(non_snake_case)] IF: InjectionFlags,
+        #[allow(non_snake_case)] IF: ProtocolFlags,
     ) {
         #[cfg(debug_assertions)]
         if crate::submit_first(IF) {
@@ -97,7 +97,7 @@ impl SignalState {
     }
     pub const fn is_nothing_written_or_ordinary_hash_or_possibly_submitted(
         &self,
-        #[allow(non_snake_case)] IF: InjectionFlags,
+        #[allow(non_snake_case)] IF: ProtocolFlags,
     ) -> bool {
         if crate::signal_first(IF) {
             matches!(
@@ -122,7 +122,7 @@ impl SignalState {
     }
     pub const fn is_signalled_proposal_coming(
         &self,
-        #[allow(non_snake_case)] IF: InjectionFlags,
+        #[allow(non_snake_case)] IF: ProtocolFlags,
     ) -> bool {
         #[cfg(debug_assertions)]
         if crate::submit_first(IF) {
@@ -132,7 +132,7 @@ impl SignalState {
     }
     pub const fn is_hash_possibly_submitted(
         &self,
-        #[allow(non_snake_case)] IF: InjectionFlags,
+        #[allow(non_snake_case)] IF: ProtocolFlags,
     ) -> bool {
         #[cfg(debug_assertions)]
         if crate::signal_first(IF) {
