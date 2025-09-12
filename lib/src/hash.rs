@@ -105,13 +105,11 @@ pub fn signal_inject_hash<H: Hasher, const F: InjectionFlags>(hasher: &mut H, ha
     assert_eq!(hasher.finish(), hash);
 
     #[cfg(feature = "injector-checks-same-flow")]
-    hasher.write_length_prefix(
-        if signal_first(F) {
-            EXPECTING_SIGNAL_FIRST_METHOD
-        } else {
-            EXPECTING_SUBMIT_FIRST_METHOD
-        }
-    );
+    hasher.write_length_prefix(if signal_first(F) {
+        EXPECTING_SIGNAL_FIRST_METHOD
+    } else {
+        EXPECTING_SUBMIT_FIRST_METHOD
+    });
 }
 
 /// A state machine for a [Hash] implementation to pass a specified hash to [Hasher] - rather than
@@ -193,6 +191,9 @@ impl<H: Hasher, const F: InjectionFlags> SignalledInjectionHasher<H, F> {
         );
     }
     // @TODO if this doesn't optimize away in release, replace with a macro.
+    /// Assert that
+    /// - no hash has been signalled (if we do signal first - before submitting), and
+    /// - no hash has been received (regardless of whether we signal first, or submit first).
     #[inline(always)]
     fn assert_nothing_written_or_ordinary_hash_or_possibly_submitted(&self) {
         #[cfg(feature = "asserts")]
@@ -203,17 +204,21 @@ impl<H: Hasher, const F: InjectionFlags> SignalledInjectionHasher<H, F> {
                         self.state.kind,
                         SignalStateKind::NothingWritten | SignalStateKind::WrittenOrdinaryHash
                     ),
-                    "Expecting the state to be NothingWritten or WrittenOrdinaryHash (or HashPossiblySubmitted, which is not applicable), but the state was: {:?}",
+                    "Expecting the state to be NothingWritten or WrittenOrdinaryHash (or HashPossiblySubmitted, which is not applicable because we signal first), but the state was: {:?}",
                     self.state
                 );
             } else {
-                assert!(
+                debug_assert_eq!(
                     matches!(
                         self.state.kind,
                         SignalStateKind::NothingWritten
                             | SignalStateKind::WrittenOrdinaryHash
                             | SignalStateKind::HashPossiblySubmitted
                     ),
+                    !matches!(self.state.kind, SignalStateKind::HashReceived)
+                );
+                assert!(
+                    !matches!(self.state.kind, SignalStateKind::HashReceived),
                     "Expecting the state to be NothingWritten or WrittenOrdinaryHash or HashPossiblySubmitted, but the state was: {:?}",
                     self.state
                 );
