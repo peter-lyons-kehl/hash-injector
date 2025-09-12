@@ -8,8 +8,8 @@ pub type SignalStateKind = SignalStateKindImpl;
 ///
 /// Variants (but NOT their integer values) are listed in order of progression.
 ///
-/// The enum is private, to prevent accidental misuse of variants incompatible with the signal
-/// first/submit first behavior (InjectionFlags).
+/// The enum is private, to prevent accidental misuse of variants incompatible with the signalling
+/// first/submit first behavior ([`crate::ProtocolFlags``]).
 #[derive(PartialEq, Eq, Debug)]
 #[allow(private_interfaces)]
 enum SignalStateKindImpl {
@@ -84,17 +84,19 @@ impl SignalState {
     }
 
     // -----
-
+    #[cfg(feature = "asserts")]
     pub const fn is_nothing_written(&self) -> bool {
         //@TODO replace with matches!(..)
         matches!(self.kind, SignalStateKind::NothingWritten)
     }
+    #[cfg(feature = "asserts")]
     pub const fn is_nothing_written_or_ordinary_hash(&self) -> bool {
         matches!(
             self.kind,
             SignalStateKind::NothingWritten | SignalStateKind::WrittenOrdinaryHash
         )
     }
+    #[cfg(feature = "asserts")]
     pub const fn is_nothing_written_or_ordinary_hash_or_possibly_submitted(
         &self,
         #[allow(non_snake_case)] IF: ProtocolFlags,
@@ -153,7 +155,10 @@ const _VERIFY: () = {
     /*if !SignalState::set_written_ordinary_hash().kind.const_eq(&SignalStateKind::WrittenOrdinaryHash) {
         panic!();
     }*/
-    if !SignalState::new_nothing_written().is_nothing_written() {
+    if !matches!(
+        SignalState::new_nothing_written().kind,
+        SignalStateKind::NothingWritten
+    ) {
         panic!();
     }
 };

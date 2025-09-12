@@ -5,4 +5,4 @@ edition = "2024"
 
 [dependencies]
 
-hash-injector =  { path = "../lib", features = ["asserts", "adt-const-params", "injector-checks-finish", "injector-checks-same-flow"] }
+hash-injector =  { path = "../lib" }

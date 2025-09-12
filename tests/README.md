@@ -19,9 +19,24 @@ the same virtual workspace (under `tests/`) differ only in `const` generic param
 Each letter indicates whether a respective cargo feature is turned on.
 
 ```
-a_h_f_s
-a       asserts
-  h     adt-const-params (higher types for const generic flags)
-    f   injector-checks-finish
-      s injector-checks-same-flow (available only if injector-checks-finish is turned on, too)
+Directory name with all cargo features enabled:
+asserts_base-flags-type_keys-flags-type_finish_protocol
+
+Directory name parts, each represents
+an enabled cargo feature                                 Crate/feature                  Meaning
+--------------------------------------------------------------------------------------------------------
+asserts                                                  hash-injector/asserts          Extra asserts (same for
+                                                                                        debug and release target).
+                                                                                                                    
+        base-flags-type                                  hash-injector/flags-type       Higher const generic type
+                                                                                        InjectionFlags.
+                                                                                                                      
+                        keys-flags-type                  hash-injector-keys/flags-type  Higher const generic type
+                                                                                        KeyFlags.
+                                                                                                                    
+                                        finish           hash-injector/check-finish     Check the result hash.
+                                                                                                                     
+                                               protocol  hash-injector/check-protocol   Protocol check between Hash
+                                                                                        and Hasher. Requires
+                                                                                        hash-injector/check-finish.
 ```

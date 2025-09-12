@@ -29,8 +29,8 @@ unexpected_cfgs = { level = "forbid"}
 # Expensive
 asserts = []
 
-# Whether to use a higher level type for the const generic parameter type InjectionFlags.
-adt-const-params = []
+# Whether to use a higher level type for the const generic parameter type ProtocolFlags.
+flags-type = []
 
 # Use to check that the Hasher is (or behaves like) `SignalledInjectionHasher`. Use only if the
 # types that inject hashes (that is, types whose hash(...) calls `signal_inject_hash()`), are never
@@ -40,33 +40,34 @@ adt-const-params = []
 # - the underlying Hasher (its `finish(self)`), or
 # - the "original" hashed type containing (directly or indirectly) arrays or slices, especially if
 #   multiple.
-injector-checks-finish = []
+check-finish = []
 
 # Check that signal)first(F) for const generic F is the same between `signal_inject_hash(...)` and
 # `SignalledInjectionHasher`.
 #
-# Use ONLY if injector-checks-finish is enabled, too.
+# Use ONLY if check-finish is enabled, too.
 #
-# NOT much more expensive than injector-checks-finish.
-injector-checks-same-protocol = []
+# NOT much more expensive than check-finish.
+check-protocol = []
 
-#default = [                    "asserts"]
-#default = [                    "asserts", "injector-checks-finish"]
-
-# NOT allowed:
-#default = [                                                         "injector-checks-same-protocol"]
-# NOT allowed:
-#default = [                    "asserts",                           "injector-checks-same-protocol"]
-
-#default = [                    "asserts", "injector-checks-finish", "injector-checks-same-protocol"]
-
-#default = ["adt-const-params"]
-#default = ["adt-const-params", "asserts"]
-#default = ["adt-const-params", "asserts", "injector-checks-finish"]
+#default = [              "asserts"]
+#default = [              "asserts", "check-finish"]
 
 # NOT allowed:
-#default = ["adt-const-params",                                      "injector-checks-same-protocol"]
+#default = [                                         "check-protocol"]
 # NOT allowed:
-#default = ["adt-const-params", "asserts",                           "injector-checks-same-protocol"]
+#default = [              "asserts",                 "check-protocol"]
 
-#default = ["adt-const-params", "asserts", "injector-checks-finish", "injector-checks-same-protocol"]
+#default = [              "asserts", "check-finish", "check-protocol"]
+
+#default = ["flags-type"]
+#default = ["flags-type", "asserts"]
+#default = ["flags-type", "asserts", "check-finish"]
+
+# NOT allowed:
+#default = ["flags-type",                            "check-protocol"]
+# NOT allowed:
+#default = ["flags-type", "asserts",                 "check-protocol"]
+
+# ALL features:
+#default = ["flags-type", "asserts", "check-finish", "check-protocol"]

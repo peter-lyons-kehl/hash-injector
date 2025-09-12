@@ -2,23 +2,18 @@
 #![no_std]
 #![forbid(unsafe_code)]
 #![feature(hasher_prefixfree_extras)]
-#![cfg_attr(feature = "adt-const-params", feature(adt_const_params))]
+#![cfg_attr(feature = "flags-type", feature(adt_const_params))]
 
 use core::hash::{BuildHasher, Hasher};
-#[cfg(feature = "adt-const-params")]
+#[cfg(feature = "flags-type")]
 use core::marker::ConstParamTy;
 
 mod state;
 use state::SignalState;
 
-#[cfg(all(
-    feature = "injector-checks-same-protocol",
-    not(feature = "injector-checks-finish")
-))]
+#[cfg(all(feature = "check-protocol", not(feature = "check-finish")))]
 const _SAME_FLOW_CHECK_REQUIRES_FINISH_CHECK: () = {
-    panic!(
-        "Feature injector-checks-same-protocol is enabled, but it requires feature injector-checks-finish, too."
-    );
+    panic!("Feature check-protocol is enabled, but it requires feature check-finish, too.");
 };
 
 /// A fictitious slice length, which represents a signal that we either just handed an injected
@@ -26,9 +21,9 @@ const _SAME_FLOW_CHECK_REQUIRES_FINISH_CHECK: () = {
 const SIGNALLING: usize = usize::MAX;
 
 /// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation submits a hash first (before signalling).
-#[cfg(feature = "injector-checks-same-protocol")]
+#[cfg(feature = "check-protocol")]
 const EXPECTING_SUBMIT_FIRST_METHOD: usize = usize::MAX - 2;
-#[cfg(feature = "injector-checks-same-protocol")]
+#[cfg(feature = "check-protocol")]
 /// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation signals first (before submitting a hash).
 const EXPECTING_SIGNAL_FIRST_METHOD: usize = usize::MAX - 1;
 
@@ -40,49 +35,49 @@ const EXPECTING_SIGNAL_FIRST_METHOD: usize = usize::MAX - 1;
 pub type ProtocolFlags = ProtocolFlagsImpl;
 
 // If we ever have more than one flag, then change this into e.g. u8.
-#[cfg(not(feature = "adt-const-params"))]
+#[cfg(not(feature = "flags-type"))]
 type ProtocolFlagsImpl = bool;
 
-#[cfg(feature = "adt-const-params")]
+#[cfg(feature = "flags-type")]
 /// Type for const generic parameter `F`.
 #[derive(ConstParamTy, Clone, Copy, PartialEq, Eq)]
 pub struct ProtocolFlagsImpl {
     signal_first: bool,
 }
 pub const fn new_flags_signal_first() -> ProtocolFlags {
-    #[cfg(not(feature = "adt-const-params"))]
+    #[cfg(not(feature = "flags-type"))]
     {
         true
     }
-    #[cfg(feature = "adt-const-params")]
+    #[cfg(feature = "flags-type")]
     ProtocolFlags { signal_first: true }
 }
 pub const fn new_flags_submit_first() -> ProtocolFlags {
-    #[cfg(not(feature = "adt-const-params"))]
+    #[cfg(not(feature = "flags-type"))]
     {
         false
     }
-    #[cfg(feature = "adt-const-params")]
+    #[cfg(feature = "flags-type")]
     ProtocolFlags {
         signal_first: false,
     }
 }
 const fn signal_first(flags: ProtocolFlags) -> bool {
-    #[cfg(not(feature = "adt-const-params"))]
+    #[cfg(not(feature = "flags-type"))]
     {
         flags
     }
-    #[cfg(feature = "adt-const-params")]
+    #[cfg(feature = "flags-type")]
     {
         flags.signal_first
     }
 }
 const fn submit_first(flags: ProtocolFlags) -> bool {
-    #[cfg(not(feature = "adt-const-params"))]
+    #[cfg(not(feature = "flags-type"))]
     {
         !flags
     }
-    #[cfg(feature = "adt-const-params")]
+    #[cfg(feature = "flags-type")]
     {
         !flags.signal_first
     }
@@ -117,11 +112,11 @@ pub fn signal_inject_hash<H: Hasher, const PF: ProtocolFlags>(hasher: &mut H, ha
         hasher.write_length_prefix(SIGNALLING);
     }
     // Check that finish() does return the signalled hash. We do this BEFORE
-    // injector-checks-same-protocol-based checks (if any).
-    #[cfg(feature = "injector-checks-finish")]
+    // check-protocol-based checks (if any).
+    #[cfg(feature = "check-finish")]
     assert_eq!(hasher.finish(), hash);
 
-    #[cfg(feature = "injector-checks-same-protocol")]
+    #[cfg(feature = "check-protocol")]
     hasher.write_length_prefix(if signal_first(PF) {
         EXPECTING_SIGNAL_FIRST_METHOD
     } else {
@@ -290,7 +285,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                 self.assert_nothing_written();
                 self.state.set_signalled_proposal_coming(PF);
             } else {
-                #[cfg(feature = "injector-checks-same-protocol")]
+                #[cfg(feature = "check-protocol")]
                 {
                     if len == EXPECTING_SIGNAL_FIRST_METHOD {
                         return;
@@ -318,7 +313,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                     self.written_ordinary_hash();
                 }
             } else {
-                #[cfg(feature = "injector-checks-same-protocol")]
+                #[cfg(feature = "check-protocol")]
                 {
                     if len == EXPECTING_SUBMIT_FIRST_METHOD {
                         return;
