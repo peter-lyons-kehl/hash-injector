@@ -58,6 +58,7 @@ injector-checks-same-flow = []
 
 #default = [                    "asserts", "injector-checks-finish", "injector-checks-same-flow"]
 
+default = ["adt-const-params"]
 #default = ["adt-const-params", "asserts"]
 #default = ["adt-const-params", "asserts", "injector-checks-finish"]
 

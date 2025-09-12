@@ -1,4 +1,4 @@
-use crate::hash::InjectionFlags;
+use crate::hash::{InjectionFlags, new_flags_submit_first};
 use core::borrow::Borrow;
 use core::cmp::Ordering;
 use core::hash::{Hash, Hasher};
@@ -25,7 +25,7 @@ type KeyFlagsImpl = bool;
 /// Type for const generic parameter `KF`.
 #[derive(ConstParamTy, Clone, Copy, PartialEq, Eq)]
 pub struct KeyFlagsImpl {
-    eq_involves_hash: bool,
+    eq_includes_hash: bool,
 }
 
 pub const fn new_flags_eq_includes_hash() -> KeyFlags {
@@ -35,7 +35,7 @@ pub const fn new_flags_eq_includes_hash() -> KeyFlags {
     }
     #[cfg(feature = "adt-const-params")]
     KeyFlags {
-        eq_involves_hash: true,
+        eq_includes_hash: true,
     }
 }
 pub const fn new_flags_eq_excludes_hash() -> KeyFlags {
@@ -45,8 +45,15 @@ pub const fn new_flags_eq_excludes_hash() -> KeyFlags {
     }
     #[cfg(feature = "adt-const-params")]
     KeyFlags {
-        eq_involves_hash: false,
+        eq_includes_hash: false,
     }
+}
+
+const fn eq_includes_hash(flags: KeyFlags) -> bool {
+    #[cfg(not(feature = "adt-const-params"))]
+    return flags;
+    #[cfg(feature = "adt-const-params")]
+    return flags.eq_includes_hash;
 }
 
 #[derive(Eq, Clone, Copy, Debug)]
@@ -59,10 +66,12 @@ pub struct Primary<P, const IF: InjectionFlags, const KF: KeyFlags> {
     pub hash: u64,
     pub p: P,
 }
-impl<P: Hash, const IF: InjectionFlags, const KF: KeyFlags> Primary<P, IF, KF> {
+impl<P, const IF: InjectionFlags, const KF: KeyFlags> Primary<P, IF, KF> {
     pub fn new(p: P, hash: u64) -> Self {
         Self { p, hash }
     }
+}
+impl<P: Hash, const IF: InjectionFlags, const KF: KeyFlags> Primary<P, IF, KF> {
     /// We consume the hasher, so that it's not reused accidentally.
     pub fn new_from_hasher<H: Hasher>(key: P, mut h: H) -> Self {
         key.hash(&mut h);
@@ -71,10 +80,18 @@ impl<P: Hash, const IF: InjectionFlags, const KF: KeyFlags> Primary<P, IF, KF> {
 }
 impl<P: PartialEq, const IF: InjectionFlags, const KF: KeyFlags> PartialEq for Primary<P, IF, KF> {
     fn eq(&self, other: &Self) -> bool {
-        self.p == other.p
+        if eq_includes_hash(KF) {
+            self.hash == other.hash && self.p == other.p
+        } else {
+            self.p == other.p
+        }
     }
     fn ne(&self, other: &Self) -> bool {
-        self.p != other.p
+        if eq_includes_hash(KF) {
+            self.hash != other.hash || self.p != other.p
+        } else {
+            self.p != other.p
+        }
     }
 }
 impl<P: Hash, const IF: InjectionFlags, const KF: KeyFlags> Hash for Primary<P, IF, KF> {
@@ -110,10 +127,18 @@ impl<S: PartialEq, const IF: InjectionFlags, const KF: KeyFlags> PartialEq
     for Secondary<S, IF, KF>
 {
     fn eq(&self, other: &Self) -> bool {
-        self.s == other.s
+        if eq_includes_hash(KF) {
+            self.hash == other.hash && self.s == other.s
+        } else {
+            self.s == other.s
+        }
     }
     fn ne(&self, other: &Self) -> bool {
-        self.s != other.s
+        if eq_includes_hash(KF) {
+            self.hash != other.hash || self.s != other.s
+        } else {
+            self.s != other.s
+        }
     }
 }
 impl<S: PartialOrd, const IF: InjectionFlags, const KF: KeyFlags> PartialOrd
@@ -217,9 +242,7 @@ pub struct PrimaryWrap<P> {
 }
 impl<P> PrimaryWrap<P> {
     pub fn new(p: P) -> Self {
-        Self {
-            p
-        }
+        Self { p }
     }
 }
 impl<'a, P, S, const IF: InjectionFlags, const PKF: KeyFlags, const SKF: KeyFlags>
@@ -240,9 +263,7 @@ pub struct SecondaryWrap<S> {
 }
 impl<S> SecondaryWrap<S> {
     pub fn new(s: S) -> Self {
-        Self {
-            s
-        }
+        Self { s }
     }
 }
 impl<'a, P, S, const IF: InjectionFlags, const PKF: KeyFlags, const SKF: KeyFlags>
@@ -252,3 +273,42 @@ impl<'a, P, S, const IF: InjectionFlags, const PKF: KeyFlags, const SKF: KeyFlag
         unsafe { mem::transmute(&self.sk.s) }
     }
 }
+
+/*pub trait _Suggested<const IF: InjectionFlags>: Sized {
+    const PRIMARY_FLAGS: KeyFlags;
+    const SECONDARY_FLAGS: KeyFlags;
+    //type Prim = Primary<T, IF, {Self::PRIMARY_FLAGS} >;
+    // type Prim = Primary<Self, IF, {Self::PRIMARY_FLAGS} > where [(); {Self::PRIMARY_FLAGS::pretend_usize()} as usize]:;
+    // type Seco = Secondary<Self, IF, {Self::SECONDARY_FLAGS} > where [(); {Self::SECONDARY_FLAGS} as usize]:;
+}*/
+
+pub trait Suggested<const IF: InjectionFlags>: Sized {
+    type Prim;
+    type Sec;
+    const RECOMMENDED_INJECTION_FLAGS: InjectionFlags;
+}
+const IF_SUBMIT_FIRST: InjectionFlags = new_flags_submit_first();
+impl<const IF: InjectionFlags> Suggested<IF> for u8 {
+    type Prim = Primary<u8, { IF }, { new_flags_eq_excludes_hash() }>;
+    type Sec = Secondary<u8, { IF }, { new_flags_eq_excludes_hash() }>;
+    const RECOMMENDED_INJECTION_FLAGS: InjectionFlags = IF_SUBMIT_FIRST;
+}
+
+pub type U8Primary<const IF: InjectionFlags> = <u8 as Suggested<IF>>::Prim;
+// -||-  U8Secondary
+//----
+/* Less ergonomic alternative:
+pub trait PrimaryTr2<const IF: InjectionFlags>: Sized {
+    type Prim;
+    type Sec;
+    const RECOMMENDED_INJECTION_FLAGS: InjectionFlags;
+}
+pub struct __Suggested<P, const IF: InjectionFlags>(core::marker::PhantomData<P>);
+impl<const IF: InjectionFlags> PrimaryTr2<IF> for __Suggested<u8, IF> {
+    type Prim = Primary<u8, { IF }, { new_flags_eq_excludes_hash() }>;
+    type Sec = Secondary<u8, { IF }, { new_flags_eq_excludes_hash() }>;
+    const RECOMMENDED_INJECTION_FLAGS: InjectionFlags = IF_SUBMIT_FIRST;
+}
+
+pub type U8Primary2<const IF: InjectionFlags> = <__Suggested<u8, IF> as PrimaryTr2<IF>>::Prim;
+*/

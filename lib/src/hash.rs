@@ -20,7 +20,7 @@ const _CHECKED_SIGNAL_FIRST: usize = usize::MAX - 1;
 /// Used only when feature injector-checks-same-flow is enabled.
 const _CHECKED_STANDARD_FLOW: usize = usize::MAX - 2;
 
-/// An enum-like Type for const generic parameter `F`. Use `new_flags_xxx` functions to create the
+/// An enum-like Type for const generic parameter `IF`. Use `new_flags_xxx` functions to create the
 /// values.
 ///
 /// Do not compare with/store as/pass as values of other types - the actual implementation of the
@@ -55,7 +55,7 @@ pub const fn new_flags_submit_first() -> InjectionFlags {
         signal_first: false,
     }
 }
-const fn flags_signal_first(flags: InjectionFlags) -> bool {
+const fn signal_first(flags: InjectionFlags) -> bool {
     #[cfg(not(feature = "adt-const-params"))]
     {
         flags
@@ -87,7 +87,7 @@ const fn flags_signal_first(flags: InjectionFlags) -> bool {
 pub fn signal_inject_hash<H: Hasher, const F: InjectionFlags>(hasher: &mut H, hash: u64) {
     // The order of operations is intentionally different for SIGNAL_FIRST. This (hopefully) helps us
     // notice any logical errors or opportunities for improvement in this module earlier.
-    if flags_signal_first(F) {
+    if signal_first(F) {
         hasher.write_length_prefix(SIGNALLED_LENGTH_PREFIX);
         hasher.write_u64(hash);
     } else {
@@ -100,7 +100,7 @@ pub fn signal_inject_hash<H: Hasher, const F: InjectionFlags>(hasher: &mut H, ha
     assert_eq!(hasher.finish(), hash);
 
     #[cfg(feature = "injector-checks-same-flow")]
-    if flags_signal_first(F) {
+    if signal_first(F) {
         hasher.write_length_prefix(_CHECKED_SIGNAL_FIRST);
     } else {
         hasher.write_length_prefix(_CHECKED_STANDARD_FLOW);
@@ -190,7 +190,7 @@ impl<H: Hasher, const F: InjectionFlags> SignalledInjectionHasher<H, F> {
     fn assert_nothing_written_or_ordinary_hash_or_submitted(&self) {
         #[cfg(feature = "asserts")]
         {
-            if flags_signal_first(F) {
+            if signal_first(F) {
                 assert!(
                     matches!(
                         self.state.kind,
@@ -252,7 +252,7 @@ impl<H: Hasher, const F: InjectionFlags> Hasher for SignalledInjectionHasher<H, 
         self.written_ordinary_hash();
     }
     fn write_u64(&mut self, i: u64) {
-        if flags_signal_first(F) {
+        if signal_first(F) {
             if self.state.kind == SignalStateKind::SignalledProposalComing {
                 self.state = SignalState::new(SignalStateKind::HashReceived, i);
             } else {
@@ -320,7 +320,7 @@ impl<H: Hasher, const F: InjectionFlags> Hasher for SignalledInjectionHasher<H, 
         self.written_ordinary_hash();
     }
     fn write_length_prefix(&mut self, len: usize) {
-        if flags_signal_first(F) {
+        if signal_first(F) {
             if len == SIGNALLED_LENGTH_PREFIX {
                 self.assert_nothing_written();
                 self.state.kind = SignalStateKind::SignalledProposalComing;
