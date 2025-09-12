@@ -269,13 +269,13 @@ impl<H: Hasher, const F: InjectionFlags> Hasher for SignalledInjectionHasher<H, 
             }
         } else {
             self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
-            self.state = SignalState::new(SignalStateKind::HashPossiblySubmitted, i);
             // If we are indeed signalling, then after the following write_u64(...) the value
             // written to the underlying Hasher will NOT be used, because finish(&self) then returns
             // the injected hash - instead of calling the underlying Hasher's finish(). So, the
             // compiler can optimize the following call away (thanks to Hasher objects being passed
             // by generic reference - instead of a &dyn trait reference):
             self.hasher.write_u64(i);
+            self.state = SignalState::new(SignalStateKind::HashPossiblySubmitted, i);
         }
     }
     #[inline]
