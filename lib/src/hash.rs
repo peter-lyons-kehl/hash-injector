@@ -105,11 +105,13 @@ pub fn signal_inject_hash<H: Hasher, const F: InjectionFlags>(hasher: &mut H, ha
     assert_eq!(hasher.finish(), hash);
 
     #[cfg(feature = "injector-checks-same-flow")]
-    if signal_first(F) {
-        hasher.write_length_prefix(EXPECTING_SIGNAL_FIRST_METHOD);
-    } else {
-        hasher.write_length_prefix(EXPECTING_SUBMIT_FIRST_METHOD);
-    }
+    hasher.write_length_prefix(
+        if signal_first(F) {
+            EXPECTING_SIGNAL_FIRST_METHOD
+        } else {
+            EXPECTING_SUBMIT_FIRST_METHOD
+        }
+    );
 }
 
 /// A state machine for a [Hash] implementation to pass a specified hash to [Hasher] - rather than
@@ -122,11 +124,11 @@ enum SignalStateKind {
     /// Ordinary hash (or its part) has been written
     WrittenOrdinaryHash = 2,
 
-    // Set to zero, so as to speed up write_u64(,,,) when signal_first(F)==true. Used ONLY when
-    // signal_first(F)==true.
+    // Set to zero, so as to speed up write_u64(,,,) when signal_first(IF)==true. Used ONLY when
+    // signal_first(IF)==true.
     SignalledProposalComing = 0,
 
-    // Ued ONLY when signal_first(F)==false.
+    // Used ONLY when signal_first(IF)==false.
     HashPossiblySubmitted = 3,
 
     HashReceived = 4,
