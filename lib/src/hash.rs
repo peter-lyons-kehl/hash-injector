@@ -187,7 +187,7 @@ impl<H: Hasher, const F: InjectionFlags> SignalledInjectionHasher<H, F> {
     }
     // @TODO if this doesn't optimize away in release, replace with a macro.
     #[inline(always)]
-    fn assert_nothing_written_or_ordinary_hash_or_submitted(&self) {
+    fn assert_nothing_written_or_ordinary_hash_or_possibly_submitted(&self) {
         #[cfg(feature = "asserts")]
         {
             if signal_first(F) {
@@ -220,7 +220,7 @@ impl<H: Hasher, const F: InjectionFlags> Hasher for SignalledInjectionHasher<H, 
         if self.state.kind == SignalStateKind::HashReceived {
             self.state.hash
         } else {
-            self.assert_nothing_written_or_ordinary_hash_or_submitted();
+            self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
             self.hasher.finish()
         }
     }
@@ -228,26 +228,26 @@ impl<H: Hasher, const F: InjectionFlags> Hasher for SignalledInjectionHasher<H, 
     /// through `write_length_prefix` and `write_u64` when signalling.
     #[inline]
     fn write(&mut self, bytes: &[u8]) {
-        self.assert_nothing_written_or_ordinary_hash_or_submitted();
+        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
         self.hasher.write(bytes);
         self.written_ordinary_hash();
     }
 
     #[inline]
     fn write_u8(&mut self, i: u8) {
-        self.assert_nothing_written_or_ordinary_hash_or_submitted();
+        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
         self.hasher.write_u8(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_u16(&mut self, i: u16) {
-        self.assert_nothing_written_or_ordinary_hash_or_submitted();
+        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
         self.hasher.write_u16(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_u32(&mut self, i: u32) {
-        self.assert_nothing_written_or_ordinary_hash_or_submitted();
+        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
         self.hasher.write_u32(i);
         self.written_ordinary_hash();
     }
@@ -261,7 +261,7 @@ impl<H: Hasher, const F: InjectionFlags> Hasher for SignalledInjectionHasher<H, 
                 self.written_ordinary_hash();
             }
         } else {
-            self.assert_nothing_written_or_ordinary_hash_or_submitted();
+            self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
             self.state = SignalState::new(SignalStateKind::HashPossiblySubmitted, i);
             // If we are indeed signalling, then after the following write_u64(...) the value
             // written to the underlying Hasher will NOT be used, because finish(&self) then returns
@@ -273,49 +273,49 @@ impl<H: Hasher, const F: InjectionFlags> Hasher for SignalledInjectionHasher<H, 
     }
     #[inline]
     fn write_u128(&mut self, i: u128) {
-        self.assert_nothing_written_or_ordinary_hash_or_submitted();
+        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
         self.hasher.write_u128(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_usize(&mut self, i: usize) {
-        self.assert_nothing_written_or_ordinary_hash_or_submitted();
+        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
         self.hasher.write_usize(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_i8(&mut self, i: i8) {
-        self.assert_nothing_written_or_ordinary_hash_or_submitted();
+        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
         self.hasher.write_i8(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_i16(&mut self, i: i16) {
-        self.assert_nothing_written_or_ordinary_hash_or_submitted();
+        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
         self.hasher.write_i16(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_i32(&mut self, i: i32) {
-        self.assert_nothing_written_or_ordinary_hash_or_submitted();
+        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
         self.hasher.write_i32(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_i64(&mut self, i: i64) {
-        self.assert_nothing_written_or_ordinary_hash_or_submitted();
+        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
         self.hasher.write_i64(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_i128(&mut self, i: i128) {
-        self.assert_nothing_written_or_ordinary_hash_or_submitted();
+        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
         self.hasher.write_i128(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_isize(&mut self, i: isize) {
-        self.assert_nothing_written_or_ordinary_hash_or_submitted();
+        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
         self.hasher.write_isize(i);
         self.written_ordinary_hash();
     }
@@ -361,7 +361,7 @@ impl<H: Hasher, const F: InjectionFlags> Hasher for SignalledInjectionHasher<H, 
                     assert_ne!(len, _CHECKED_SIGNAL_FIRST);
                 }
 
-                self.assert_nothing_written_or_ordinary_hash_or_submitted();
+                self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
                 self.hasher.write_length_prefix(len);
                 self.written_ordinary_hash();
             }
@@ -370,7 +370,7 @@ impl<H: Hasher, const F: InjectionFlags> Hasher for SignalledInjectionHasher<H, 
 
     #[inline]
     fn write_str(&mut self, s: &str) {
-        self.assert_nothing_written_or_ordinary_hash_or_submitted();
+        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
         self.hasher.write_str(s);
         self.written_ordinary_hash();
     }
