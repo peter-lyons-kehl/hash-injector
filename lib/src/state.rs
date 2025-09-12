@@ -47,6 +47,10 @@ impl SignalState {
         }
     }
     pub const fn set_written_ordinary_hash(&mut self) {
+        #[cfg(feature = "asserts")]
+        if matches!(self.kind, SignalStateKind::HashReceived) {
+            panic!();
+        }
         self.kind = SignalStateKind::WrittenOrdinaryHash;
     }
     pub const fn new_hash_received(hash: u64) -> Self {
@@ -155,11 +159,15 @@ const _VERIFY: () = {
     /*if !SignalState::set_written_ordinary_hash().kind.const_eq(&SignalStateKind::WrittenOrdinaryHash) {
         panic!();
     }*/
-    if !matches!(
-        SignalState::new_nothing_written().kind,
-        SignalStateKind::NothingWritten
-    ) {
-        panic!();
+    {
+        let mut ordinary_zero_hash = SignalState::new_nothing_written();
+        ordinary_zero_hash.set_written_ordinary_hash();
+        if !matches!(
+            ordinary_zero_hash.kind,
+            SignalStateKind::WrittenOrdinaryHash
+        ) {
+            panic!();
+        }
     }
 };
 
