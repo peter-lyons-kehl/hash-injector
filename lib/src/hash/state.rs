@@ -26,21 +26,6 @@ enum SignalStateKindImpl {
 
     HashReceived = 4,
 }
-impl SignalStateKind {
-    // We keep derive of `PartialEq`, instead of `impl const PartialEq`, because
-    // - `impl const` is unstable, and
-    // - the derived implementation may be more optimized.
-    const fn const_eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (&Self::NothingWritten, &Self::NothingWritten)
-            | (&Self::WrittenOrdinaryHash, &Self::WrittenOrdinaryHash)
-            | (&Self::SignalledProposalComing, &Self::SignalledProposalComing)
-            | (&Self::HashPossiblySubmitted, &Self::HashPossiblySubmitted)
-            | (&Self::HashReceived, &Self::HashReceived) => true,
-            _ => false,
-        }
-    }
-}
 
 /// This used to be a data-carrying enum on its own, separate from SignalStateKind, NOT containing
 /// SignalStateKind, and carrying the possibly submitted/received hash in its variants. But, then we
@@ -102,7 +87,7 @@ impl SignalState {
 
     pub const fn is_nothing_written(&self) -> bool {
         //@TODO replace with matches!(..)
-        self.kind.const_eq(&SignalStateKind::NothingWritten)
+        matches!(self.kind, SignalStateKind::NothingWritten)
     }
     pub const fn is_nothing_written_or_ordinary_hash(&self) -> bool {
         matches!(
@@ -158,10 +143,10 @@ impl SignalState {
 }
 
 const _VERIFY: () = {
-    if !SignalState::new_nothing_written()
-        .kind
-        .const_eq(&SignalStateKind::NothingWritten)
-    {
+    if !matches!(
+        SignalState::new_nothing_written().kind,
+        SignalStateKind::NothingWritten
+    ) {
         panic!();
     }
     /*if !SignalState::set_written_ordinary_hash().kind.const_eq(&SignalStateKind::WrittenOrdinaryHash) {
