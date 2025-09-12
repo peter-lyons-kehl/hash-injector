@@ -1,4 +1,4 @@
-use crate::hash::InjectionFlags;
+use crate::InjectionFlags;
 
 #[allow(private_interfaces)]
 pub type SignalStateKind = SignalStateKindImpl;
@@ -60,7 +60,7 @@ impl SignalState {
         #[allow(non_snake_case)] IF: InjectionFlags,
     ) -> Self {
         #[cfg(debug_assertions)]
-        if crate::hash::signal_first(IF) {
+        if crate::signal_first(IF) {
             panic!();
         }
         Self {
@@ -77,7 +77,7 @@ impl SignalState {
         #[allow(non_snake_case)] IF: InjectionFlags,
     ) {
         #[cfg(debug_assertions)]
-        if crate::hash::submit_first(IF) {
+        if crate::submit_first(IF) {
             panic!();
         }
         self.kind = SignalStateKind::SignalledProposalComing;
@@ -99,7 +99,7 @@ impl SignalState {
         &self,
         #[allow(non_snake_case)] IF: InjectionFlags,
     ) -> bool {
-        if crate::hash::signal_first(IF) {
+        if crate::signal_first(IF) {
             matches!(
                 self.kind,
                 // HashPossiblySubmitted is not applicable because we signal first
@@ -125,7 +125,7 @@ impl SignalState {
         #[allow(non_snake_case)] IF: InjectionFlags,
     ) -> bool {
         #[cfg(debug_assertions)]
-        if crate::hash::submit_first(IF) {
+        if crate::submit_first(IF) {
             panic!();
         }
         matches!(self.kind, SignalStateKindImpl::SignalledProposalComing)
@@ -135,7 +135,7 @@ impl SignalState {
         #[allow(non_snake_case)] IF: InjectionFlags,
     ) -> bool {
         #[cfg(debug_assertions)]
-        if crate::hash::signal_first(IF) {
+        if crate::signal_first(IF) {
             panic!();
         }
         matches!(self.kind, SignalStateKind::HashPossiblySubmitted)
