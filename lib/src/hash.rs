@@ -5,7 +5,7 @@ use core::hash::{BuildHasher, Hasher};
 use core::marker::ConstParamTy;
 
 mod state;
-use state::{SignalState, SignalStateKind};
+use state::SignalState;
 
 #[cfg(all(
     feature = "injector-checks-same-flow",

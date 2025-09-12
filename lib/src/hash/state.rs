@@ -1,6 +1,4 @@
 use crate::hash::InjectionFlags;
-#[cfg(debug_assertions)]
-use crate::hash::new_flags_submit_first;
 
 #[allow(private_interfaces)]
 pub type SignalStateKind = SignalStateKindImpl;
@@ -50,6 +48,7 @@ impl SignalStateKind {
 /// limiting.
 #[derive(PartialEq, Eq, Debug)]
 pub struct SignalState {
+    #[allow(private_interfaces)]
     pub kind: SignalStateKind,
     /// Only valid if kind is appropriate.
     pub hash: u64,
@@ -71,7 +70,10 @@ impl SignalState {
             hash,
         }
     }
-    pub const fn new_hash_possibly_submitted(hash: u64, IF: InjectionFlags) -> Self {
+    pub const fn new_hash_possibly_submitted(
+        hash: u64,
+        #[allow(non_snake_case)] IF: InjectionFlags,
+    ) -> Self {
         #[cfg(debug_assertions)]
         if crate::hash::signal_first(IF) {
             panic!();
@@ -85,7 +87,10 @@ impl SignalState {
     pub const fn set_hash_received(&mut self) {
         self.kind = SignalStateKind::HashReceived;
     }
-    pub const fn set_signalled_proposal_coming(&mut self, IF: InjectionFlags) {
+    pub const fn set_signalled_proposal_coming(
+        &mut self,
+        #[allow(non_snake_case)] IF: InjectionFlags,
+    ) {
         #[cfg(debug_assertions)]
         if crate::hash::submit_first(IF) {
             panic!();
@@ -107,7 +112,7 @@ impl SignalState {
     }
     pub const fn is_nothing_written_or_ordinary_hash_or_possibly_submitted(
         &self,
-        IF: InjectionFlags,
+        #[allow(non_snake_case)] IF: InjectionFlags,
     ) -> bool {
         if crate::hash::signal_first(IF) {
             matches!(
@@ -130,14 +135,20 @@ impl SignalState {
     pub const fn is_hash_received(&self) -> bool {
         matches!(self.kind, SignalStateKindImpl::HashReceived)
     }
-    pub const fn is_signalled_proposal_coming(&self, IF: InjectionFlags) -> bool {
+    pub const fn is_signalled_proposal_coming(
+        &self,
+        #[allow(non_snake_case)] IF: InjectionFlags,
+    ) -> bool {
         #[cfg(debug_assertions)]
         if crate::hash::submit_first(IF) {
             panic!();
         }
         matches!(self.kind, SignalStateKindImpl::SignalledProposalComing)
     }
-    pub const fn is_hash_possibly_submitted(&self, IF: InjectionFlags) -> bool {
+    pub const fn is_hash_possibly_submitted(
+        &self,
+        #[allow(non_snake_case)] IF: InjectionFlags,
+    ) -> bool {
         #[cfg(debug_assertions)]
         if crate::hash::signal_first(IF) {
             panic!();
@@ -146,7 +157,7 @@ impl SignalState {
     }
 }
 
-const VERIFY: () = {
+const _VERIFY: () = {
     if !SignalState::new_nothing_written()
         .kind
         .const_eq(&SignalStateKind::NothingWritten)

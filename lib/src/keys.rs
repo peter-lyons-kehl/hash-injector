@@ -1,4 +1,4 @@
-use crate::hash::{InjectionFlags, new_flags_submit_first};
+use crate::hash::InjectionFlags;
 use core::borrow::Borrow;
 use core::cmp::Ordering;
 use core::hash::{Hash, Hasher};
