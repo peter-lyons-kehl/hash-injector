@@ -14,11 +14,16 @@ const _SAME_FLOW_CHECK_REQUIRES_FINISH_CHECK: () = {
     );
 };
 
-const SIGNALLED_LENGTH_PREFIX: usize = usize::MAX;
-/// Used only when feature injector-checks-same-flow is enabled.
-const _CHECKED_SIGNAL_FIRST: usize = usize::MAX - 1;
-/// Used only when feature injector-checks-same-flow is enabled.
-const _CHECKED_STANDARD_FLOW: usize = usize::MAX - 2;
+/// A fictitious slice length, which represents a signal that we either just handed an injected
+/// hash, or we are about to hand it - depending on whether we signal first, or submit first.
+const SIGNALLING: usize = usize::MAX;
+
+/// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation submits a hash first (before signalling).
+#[cfg(feature = "injector-checks-same-flow")]
+const EXPECTING_SUBMIT_FIRST_METHOD: usize = usize::MAX - 2;
+#[cfg(feature = "injector-checks-same-flow")]
+/// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation signals first (before submitting a hash).
+const EXPECTING_SIGNAL_FIRST_METHOD: usize = usize::MAX - 1;
 
 /// An enum-like Type for const generic parameter `IF`. Use `new_flags_xxx` functions to create the
 /// values.
@@ -88,11 +93,11 @@ pub fn signal_inject_hash<H: Hasher, const F: InjectionFlags>(hasher: &mut H, ha
     // The order of operations is intentionally different for SIGNAL_FIRST. This (hopefully) helps us
     // notice any logical errors or opportunities for improvement in this module earlier.
     if signal_first(F) {
-        hasher.write_length_prefix(SIGNALLED_LENGTH_PREFIX);
+        hasher.write_length_prefix(SIGNALLING);
         hasher.write_u64(hash);
     } else {
         hasher.write_u64(hash);
-        hasher.write_length_prefix(SIGNALLED_LENGTH_PREFIX);
+        hasher.write_length_prefix(SIGNALLING);
     }
     // Check that finish() does return the signalled hash. We do this BEFORE
     // injector-checks-same-flow-based checks (if any).
@@ -101,9 +106,9 @@ pub fn signal_inject_hash<H: Hasher, const F: InjectionFlags>(hasher: &mut H, ha
 
     #[cfg(feature = "injector-checks-same-flow")]
     if signal_first(F) {
-        hasher.write_length_prefix(_CHECKED_SIGNAL_FIRST);
+        hasher.write_length_prefix(EXPECTING_SIGNAL_FIRST_METHOD);
     } else {
-        hasher.write_length_prefix(_CHECKED_STANDARD_FLOW);
+        hasher.write_length_prefix(EXPECTING_SUBMIT_FIRST_METHOD);
     }
 }
 
@@ -321,16 +326,16 @@ impl<H: Hasher, const F: InjectionFlags> Hasher for SignalledInjectionHasher<H, 
     }
     fn write_length_prefix(&mut self, len: usize) {
         if signal_first(F) {
-            if len == SIGNALLED_LENGTH_PREFIX {
+            if len == SIGNALLING {
                 self.assert_nothing_written();
                 self.state.kind = SignalStateKind::SignalledProposalComing;
             } else {
                 #[cfg(feature = "injector-checks-same-flow")]
                 {
-                    if len == _CHECKED_SIGNAL_FIRST {
+                    if len == EXPECTING_SIGNAL_FIRST_METHOD {
                         return;
                     }
-                    assert_ne!(len, _CHECKED_STANDARD_FLOW);
+                    assert_ne!(len, EXPECTING_SUBMIT_FIRST_METHOD);
                 }
 
                 self.assert_nothing_written_or_ordinary_hash();
@@ -338,7 +343,7 @@ impl<H: Hasher, const F: InjectionFlags> Hasher for SignalledInjectionHasher<H, 
                 self.written_ordinary_hash();
             }
         } else {
-            if len == SIGNALLED_LENGTH_PREFIX {
+            if len == SIGNALLING {
                 if self.state.kind == SignalStateKind::HashPossiblySubmitted {
                     self.state.kind = SignalStateKind::HashReceived;
                 } else {
@@ -355,10 +360,10 @@ impl<H: Hasher, const F: InjectionFlags> Hasher for SignalledInjectionHasher<H, 
             } else {
                 #[cfg(feature = "injector-checks-same-flow")]
                 {
-                    if len == _CHECKED_STANDARD_FLOW {
+                    if len == EXPECTING_SUBMIT_FIRST_METHOD {
                         return;
                     }
-                    assert_ne!(len, _CHECKED_SIGNAL_FIRST);
+                    assert_ne!(len, EXPECTING_SIGNAL_FIRST_METHOD);
                 }
 
                 self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();

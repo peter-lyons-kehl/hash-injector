@@ -46,6 +46,8 @@ injector-checks-finish = []
 # `SignalledInjectionHasher`.
 #
 # Use ONLY if injector-checks-finish is enabled, too.
+#
+# NOT much more expensive than injector-checks-finish.
 injector-checks-same-flow = []
 
 #default = [                    "asserts"]
@@ -58,7 +60,7 @@ injector-checks-same-flow = []
 
 #default = [                    "asserts", "injector-checks-finish", "injector-checks-same-flow"]
 
-default = ["adt-const-params"]
+#default = ["adt-const-params"]
 #default = ["adt-const-params", "asserts"]
 #default = ["adt-const-params", "asserts", "injector-checks-finish"]
 
