@@ -19,24 +19,24 @@ the same virtual workspace (under `tests/`) differ only in `const` generic param
 Each letter indicates whether a respective cargo feature is turned on.
 
 ```
-Directory name with all cargo features enabled:
-asserts_base-flags-type_keys-flags-type_finish_protocol
-
-Directory name parts, each represents
-an enabled cargo feature                                 Crate/feature                  Meaning
+Directory name parts, each represents                    Crate/              Meaning
+an enabled cargo feature:                                feature             
 --------------------------------------------------------------------------------------------------------
-asserts                                                  hash-injector/asserts          Extra asserts (same for
-                                                                                        debug and release target).
-                                                                                                                    
-        base-flags-type                                  hash-injector/flags-type       Higher const generic type
-                                                                                        InjectionFlags.
-                                                                                                                      
-                        keys-flags-type                  hash-injector-keys/flags-type  Higher const generic type
-                                                                                        KeyFlags.
-                                                                                                                    
-                                        finish           hash-injector/check-finish     Check the result hash.
-                                                                                                                     
-                                               protocol  hash-injector/check-protocol   Protocol check between Hash
-                                                                                        and Hasher. Requires
-                                                                                        hash-injector/check-finish.
+asserts                                                  hash-injector/       Extra asserts (same for
+   |                                                     asserts              debug and release target).
+   |                                                                                                
+   |    base-flags-type                                  hash-injector/       Higher const generic type
+   |           |                                         flags-type           InjectionFlags.
+   |           |                                                                                       
+   |           |        keys-flags-type                  hash-injector-keys/  Higher const generic type
+   |           |               |                         flags-type           KeyFlags.
+   |           |               |                                                                       
+   |           |               |        finish           hash-injector/       Check the result hash.
+   |           |               |          |              check-finish                                   
+   |           |               |         |                                                             
+   |           |               |          |    protocol  hash-injector/       Protocol check between Hash
+   |           |               |          |       |      check-protocol       and Hasher. Requires
+   |           |               |          |       |                           hash-injector/check-finish.
+asserts_base-flags-type_keys-flags-type_finish_protocol
+= directory with all cargo features enabled.
 ```

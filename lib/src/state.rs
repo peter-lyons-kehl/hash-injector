@@ -17,11 +17,11 @@ enum SignalStateKindImpl {
     /// Ordinary hash (or its part) has been written
     WrittenOrdinaryHash = 2,
 
-    // Set to zero, so as to speed up write_u64(,,,) when signal_first(IF)==true. Used ONLY when
-    // signal_first(IF)==true.
+    // Set to zero, so as to speed up write_u64(,,,) when signal_first(PF)==true. Used ONLY when
+    // signal_first(PF)==true.
     SignalledProposalComing = 0,
 
-    // Used ONLY when signal_first(IF)==false.
+    // Used ONLY when signal_first(PF)==false.
     HashPossiblySubmitted = 3,
 
     HashReceived = 4,
@@ -61,10 +61,10 @@ impl SignalState {
     }
     pub const fn new_hash_possibly_submitted(
         hash: u64,
-        #[allow(non_snake_case)] IF: ProtocolFlags,
+        #[allow(non_snake_case)] PF: ProtocolFlags,
     ) -> Self {
         #[cfg(debug_assertions)]
-        if crate::signal_first(IF) {
+        if crate::signal_first(PF) {
             panic!();
         }
         Self {
@@ -78,10 +78,10 @@ impl SignalState {
     }
     pub const fn set_signalled_proposal_coming(
         &mut self,
-        #[allow(non_snake_case)] IF: ProtocolFlags,
+        #[allow(non_snake_case)] PF: ProtocolFlags,
     ) {
         #[cfg(debug_assertions)]
-        if crate::submit_first(IF) {
+        if crate::submit_first(PF) {
             panic!();
         }
         self.kind = SignalStateKind::SignalledProposalComing;
@@ -103,9 +103,9 @@ impl SignalState {
     #[cfg(feature = "asserts")]
     pub const fn is_nothing_written_or_ordinary_hash_or_possibly_submitted(
         &self,
-        #[allow(non_snake_case)] IF: ProtocolFlags,
+        #[allow(non_snake_case)] PF: ProtocolFlags,
     ) -> bool {
-        if crate::signal_first(IF) {
+        if crate::signal_first(PF) {
             matches!(
                 self.kind,
                 // HashPossiblySubmitted is not applicable because we signal first
@@ -128,20 +128,20 @@ impl SignalState {
     }
     pub const fn is_signalled_proposal_coming(
         &self,
-        #[allow(non_snake_case)] IF: ProtocolFlags,
+        #[allow(non_snake_case)] PF: ProtocolFlags,
     ) -> bool {
         #[cfg(debug_assertions)]
-        if crate::submit_first(IF) {
+        if crate::submit_first(PF) {
             panic!();
         }
         matches!(self.kind, SignalStateKindImpl::SignalledProposalComing)
     }
     pub const fn is_hash_possibly_submitted(
         &self,
-        #[allow(non_snake_case)] IF: ProtocolFlags,
+        #[allow(non_snake_case)] PF: ProtocolFlags,
     ) -> bool {
         #[cfg(debug_assertions)]
-        if crate::signal_first(IF) {
+        if crate::signal_first(PF) {
             panic!();
         }
         matches!(self.kind, SignalStateKind::HashPossiblySubmitted)
@@ -155,10 +155,6 @@ const _VERIFY: () = {
     ) {
         panic!();
     }
-    // @TODO this and more
-    /*if !SignalState::set_written_ordinary_hash().kind.const_eq(&SignalStateKind::WrittenOrdinaryHash) {
-        panic!();
-    }*/
     {
         let mut ordinary_zero_hash = SignalState::new_nothing_written();
         ordinary_zero_hash.set_written_ordinary_hash();

@@ -10,8 +10,8 @@ Rust's `core::hash` out of the box.
 
 This works even for instances of type(s) that are 1:1 related/respective to instances of the other
 (value-bearing, "primary") type, but they do not carry any value matchable with instances of that
-other type. It is especially suitable for sequential/ordered/generated/unique assigned secondary
-indexes.
+other type. It is especially suitable for sequential/ordered/generated/unique assigned
+secondary/tertiary/quaternary... indexes.
 
 ### Problem
 
