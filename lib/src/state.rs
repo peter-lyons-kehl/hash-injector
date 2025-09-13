@@ -63,7 +63,7 @@ impl SignalState {
         #[allow(non_snake_case)] PF: ProtocolFlags,
     ) {
         #[cfg(debug_assertions)]
-        if crate::submit_first(PF) {
+        if crate::is_submit_first(PF) {
             panic!();
         }
         self.kind = SignalStateKind::SignalledProposalComing;
@@ -77,7 +77,7 @@ impl SignalState {
         #[allow(non_snake_case)] PF: ProtocolFlags,
     ) -> Self {
         #[cfg(debug_assertions)]
-        if crate::signal_first(PF) {
+        if crate::is_signal_first(PF) {
             panic!();
         }
         Self {
@@ -117,7 +117,7 @@ impl SignalState {
         &self,
         #[allow(non_snake_case)] PF: ProtocolFlags,
     ) -> bool {
-        if crate::signal_first(PF) {
+        if crate::is_signal_first(PF) {
             matches!(
                 self.kind,
                 // HashPossiblySubmitted is not applicable because we signal first
@@ -145,7 +145,7 @@ impl SignalState {
         #[allow(non_snake_case)] PF: ProtocolFlags,
     ) -> bool {
         #[cfg(debug_assertions)]
-        if crate::submit_first(PF) {
+        if crate::is_submit_first(PF) {
             panic!();
         }
         matches!(self.kind, SignalStateKindImpl::SignalledProposalComing)
@@ -156,7 +156,7 @@ impl SignalState {
         #[allow(non_snake_case)] PF: ProtocolFlags,
     ) -> bool {
         #[cfg(debug_assertions)]
-        if crate::signal_first(PF) {
+        if crate::is_signal_first(PF) {
             panic!();
         }
         matches!(self.kind, SignalStateKind::HashPossiblySubmitted)

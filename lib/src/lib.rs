@@ -46,11 +46,11 @@ const FLAGS_BIT_VIA_LEN: u8 = 0b1;
 #[cfg(not(feature = "flags-type"))]
 const FLAGS_BIT_SIGNAL_FIRST: u8 = 0b10;
 
-const fn signal_via_len(flags: ProtocolFlags) -> bool {
+const fn is_signal_via_len(flags: ProtocolFlags) -> bool {
     flags & FLAGS_BIT_VIA_LEN != 0
 }
 
-const fn signal_first(flags: ProtocolFlags) -> bool {
+const fn is_signal_first(flags: ProtocolFlags) -> bool {
     #[cfg(not(feature = "flags-type"))]
     {
         flags & FLAGS_BIT_SIGNAL_FIRST != 0
@@ -60,7 +60,7 @@ const fn signal_first(flags: ProtocolFlags) -> bool {
         flags.signal_first
     }
 }
-const fn submit_first(flags: ProtocolFlags) -> bool {
+const fn is_submit_first(flags: ProtocolFlags) -> bool {
     #[cfg(not(feature = "flags-type"))]
     {
         flags & FLAGS_BIT_SIGNAL_FIRST == 0
@@ -111,7 +111,7 @@ pub const fn len_flags_submit_first() -> ProtocolFlags {
 pub fn signal_inject_hash<H: Hasher, const PF: ProtocolFlags>(hasher: &mut H, hash: u64) {
     // The order of operations is intentionally different for SIGNAL_FIRST. This (hopefully) helps us
     // notice any logical errors or opportunities for improvement in this module earlier.
-    if signal_first(PF) {
+    if is_signal_first(PF) {
         hasher.write_length_prefix(FICTITIOUS_LEN_SIGNALLING);
         hasher.write_u64(hash);
     } else {
@@ -124,7 +124,7 @@ pub fn signal_inject_hash<H: Hasher, const PF: ProtocolFlags>(hasher: &mut H, ha
     assert_eq!(hasher.finish(), hash);
 
     #[cfg(feature = "check-protocol")]
-    hasher.write_length_prefix(if signal_first(PF) {
+    hasher.write_length_prefix(if is_signal_first(PF) {
         FICTITIOUS_LEN_EXPECTING_SIGNAL_FIRST_METHOD
     } else {
         FICTITIOUS_LEN_EXPECTING_SUBMIT_FIRST_METHOD
@@ -220,7 +220,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
     }
     fn write_u64(&mut self, i: u64) {
         // the outer if check can get optimized away (const)
-        if signal_first(PF) {
+        if is_signal_first(PF) {
             if self.state.is_signalled_proposal_coming(PF) {
                 self.state = SignalState::new_hash_received(i);
             } else {
@@ -295,7 +295,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
     }
     fn write_length_prefix(&mut self, len: usize) {
         // the outer if check can get optimized away (const)
-        if signal_first(PF) {
+        if is_signal_first(PF) {
             if len == FICTITIOUS_LEN_SIGNALLING {
                 self.assert_nothing_written();
                 self.state.set_signalled_proposal_coming(PF);
