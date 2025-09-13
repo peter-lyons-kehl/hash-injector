@@ -38,6 +38,7 @@ type ProtocolFlagsImpl = u8;
 /// Type for const generic parameter `PF`.
 #[derive(ConstParamTy, Clone, Copy, PartialEq, Eq)]
 pub struct ProtocolFlagsImpl {
+    signal_via_len: bool,
     signal_first: bool,
 }
 
@@ -46,10 +47,21 @@ const FLAGS_BIT_VIA_LEN: u8 = 0b1;
 #[cfg(not(feature = "flags-type"))]
 const FLAGS_BIT_SIGNAL_FIRST: u8 = 0b10;
 
+/// Whether this protocol signals with a fictitious length, that is, via
+/// [`Hasher::write_length_prefix`]. Otherwise it signals with a special string slice `&str`, that
+/// is, via [`Hasher::write_str`].
 const fn is_signal_via_len(flags: ProtocolFlags) -> bool {
-    flags & FLAGS_BIT_VIA_LEN != 0
+    #[cfg(not(feature = "flags-type"))]
+    {
+        flags & FLAGS_BIT_VIA_LEN != 0
+    }
+    #[cfg(feature = "flags-type")]
+    {
+        flags.signal_via_len
+    }
 }
 
+/// Whether the protocol signals before it submits the hash.
 const fn is_signal_first(flags: ProtocolFlags) -> bool {
     #[cfg(not(feature = "flags-type"))]
     {
@@ -60,6 +72,7 @@ const fn is_signal_first(flags: ProtocolFlags) -> bool {
         flags.signal_first
     }
 }
+/// Whether the protocol submits the hash before it signals.
 const fn is_submit_first(flags: ProtocolFlags) -> bool {
     #[cfg(not(feature = "flags-type"))]
     {
@@ -71,14 +84,23 @@ const fn is_submit_first(flags: ProtocolFlags) -> bool {
     }
 }
 
+/// Protocol that
+/// - signals with a fictitious length (via [`Hasher::write_length_prefix`]), and
+/// - signals before it submits the hash.
 pub const fn new_flags_len_signal_first() -> ProtocolFlags {
     #[cfg(not(feature = "flags-type"))]
     {
         FLAGS_BIT_VIA_LEN & FLAGS_BIT_SIGNAL_FIRST
     }
     #[cfg(feature = "flags-type")]
-    ProtocolFlags { signal_first: true }
+    ProtocolFlags {
+        signal_via_len: true,
+        signal_first: true,
+    }
 }
+/// Protocol that
+/// - signals with a fictitious length (via [`Hasher::write_length_prefix`]), and
+/// - submits the hash before it signals.
 pub const fn new_flags_len_submit_first() -> ProtocolFlags {
     #[cfg(not(feature = "flags-type"))]
     {
@@ -86,6 +108,35 @@ pub const fn new_flags_len_submit_first() -> ProtocolFlags {
     }
     #[cfg(feature = "flags-type")]
     ProtocolFlags {
+        signal_via_len: true,
+        signal_first: false,
+    }
+}
+/// Protocol that
+/// - signals with a  special string slice `&str (via [`Hasher::write_str`]), and
+/// - signals before it submits the hash.
+pub const fn new_flags_str_signal_first() -> ProtocolFlags {
+    #[cfg(not(feature = "flags-type"))]
+    {
+        FLAGS_BIT_VIA_LEN & FLAGS_BIT_SIGNAL_FIRST
+    }
+    #[cfg(feature = "flags-type")]
+    ProtocolFlags {
+        signal_via_len: true,
+        signal_first: true,
+    }
+}
+/// Protocol that
+/// - signals with a  special string slice `&str (via [`Hasher::write_str`]), and
+/// - submits the hash before it signals.
+pub const fn new_flags_str_submit_first() -> ProtocolFlags {
+    #[cfg(not(feature = "flags-type"))]
+    {
+        FLAGS_BIT_VIA_LEN
+    }
+    #[cfg(feature = "flags-type")]
+    ProtocolFlags {
+        signal_via_len: true,
         signal_first: false,
     }
 }
