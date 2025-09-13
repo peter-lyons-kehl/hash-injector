@@ -36,7 +36,7 @@ pub type ProtocolFlags = ProtocolFlagsImpl;
 
 // If we ever have more than one flag, then change this into e.g. u8.
 #[cfg(not(feature = "flags-type"))]
-type ProtocolFlagsImpl = u8;
+type ProtocolFlagsImpl = bool;
 
 #[cfg(feature = "flags-type")]
 /// Type for const generic parameter `F`.
@@ -44,7 +44,7 @@ type ProtocolFlagsImpl = u8;
 pub struct ProtocolFlagsImpl {
     signal_first: bool,
 }
-pub const fn new_flags_signal_first() -> ProtocolFlags {
+pub const fn flags_signal_first() -> ProtocolFlags {
     #[cfg(not(feature = "flags-type"))]
     {
         true
@@ -52,7 +52,7 @@ pub const fn new_flags_signal_first() -> ProtocolFlags {
     #[cfg(feature = "flags-type")]
     ProtocolFlags { signal_first: true }
 }
-pub const fn new_flags_submit_first() -> ProtocolFlags {
+pub const fn flags_submit_first() -> ProtocolFlags {
     #[cfg(not(feature = "flags-type"))]
     {
         false
