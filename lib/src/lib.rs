@@ -36,7 +36,7 @@ pub type ProtocolFlags = ProtocolFlagsImpl;
 
 // If we ever have more than one flag, then change this into e.g. u8.
 #[cfg(not(feature = "flags-type"))]
-type ProtocolFlagsImpl = bool;
+type ProtocolFlagsImpl = u8;
 
 #[cfg(feature = "flags-type")]
 /// Type for const generic parameter `F`.

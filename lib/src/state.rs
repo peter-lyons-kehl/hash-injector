@@ -21,7 +21,7 @@ enum SignalStateKindImpl {
     // signal_first(PF)==true.
     SignalledProposalComing = 0,
 
-    // Used ONLY when signal_first(PF)==false.
+    // Used ONLY when submit_first(PF)==true.
     HashPossiblySubmitted = 3,
 
     HashReceived = 4,
@@ -39,7 +39,7 @@ pub struct SignalState {
     pub hash: u64,
 }
 impl SignalState {
-    // constructors and mutators
+    // Constructors and mutators. (Again, in order of SignalStateKind's usual lifecycle.)
     pub const fn new_nothing_written() -> Self {
         Self {
             kind: SignalStateKind::NothingWritten,
@@ -53,12 +53,25 @@ impl SignalState {
         }
         self.kind = SignalStateKind::WrittenOrdinaryHash;
     }
-    pub const fn new_hash_received(hash: u64) -> Self {
-        Self {
-            kind: SignalStateKind::HashReceived,
-            hash,
+
+    /// Set the state that it was signalled that a hash proposal is coming.
+    ///
+    /// Requires `signal_first(PF)==true` - otherwise it panics in debug mode (regardless of, and
+    /// ignoring, `asserts` feature).
+    pub const fn set_signalled_proposal_coming(
+        &mut self,
+        #[allow(non_snake_case)] PF: ProtocolFlags,
+    ) {
+        #[cfg(debug_assertions)]
+        if crate::submit_first(PF) {
+            panic!();
         }
+        self.kind = SignalStateKind::SignalledProposalComing;
     }
+    /// Set the state to contain the given `u64` as a possible hash.
+    ///
+    /// Requires `submit_first(PF)==true` - otherwise it panics in debug mode (regardless of, and
+    /// ignoring, `asserts` feature).
     pub const fn new_hash_possibly_submitted(
         hash: u64,
         #[allow(non_snake_case)] PF: ProtocolFlags,
@@ -76,18 +89,14 @@ impl SignalState {
     pub const fn set_hash_received(&mut self) {
         self.kind = SignalStateKind::HashReceived;
     }
-    pub const fn set_signalled_proposal_coming(
-        &mut self,
-        #[allow(non_snake_case)] PF: ProtocolFlags,
-    ) {
-        #[cfg(debug_assertions)]
-        if crate::submit_first(PF) {
-            panic!();
+    pub const fn new_hash_received(hash: u64) -> Self {
+        Self {
+            kind: SignalStateKind::HashReceived,
+            hash,
         }
-        self.kind = SignalStateKind::SignalledProposalComing;
     }
 
-    // -----
+    // Queries (some used by asserts only). In order of SignalStateKind's usual lifecycle.
     #[cfg(feature = "asserts")]
     pub const fn is_nothing_written(&self) -> bool {
         //@TODO replace with matches!(..)
@@ -101,6 +110,10 @@ impl SignalState {
         )
     }
     #[cfg(feature = "asserts")]
+    /// Checks whether the state is
+    /// - nothing written, or
+    /// - ordinary hash data written, or
+    /// - hash was possibly submitted - but that is checked only if `submit_first(PF)==true` ( otherwise this state is not applicable).
     pub const fn is_nothing_written_or_ordinary_hash_or_possibly_submitted(
         &self,
         #[allow(non_snake_case)] PF: ProtocolFlags,
@@ -123,9 +136,11 @@ impl SignalState {
             !matches!(self.kind, SignalStateKind::HashReceived)
         }
     }
-    pub const fn is_hash_received(&self) -> bool {
-        matches!(self.kind, SignalStateKindImpl::HashReceived)
-    }
+
+    /// Check the state whether it was signalled that a hash proposal is coming.
+    ///
+    /// Requires `signal_first(PF)==true` - otherwise it panics in debug mode (regardless of, and
+    /// ignoring, `asserts` feature).
     pub const fn is_signalled_proposal_coming(
         &self,
         #[allow(non_snake_case)] PF: ProtocolFlags,
@@ -136,6 +151,7 @@ impl SignalState {
         }
         matches!(self.kind, SignalStateKindImpl::SignalledProposalComing)
     }
+
     pub const fn is_hash_possibly_submitted(
         &self,
         #[allow(non_snake_case)] PF: ProtocolFlags,
@@ -145,6 +161,9 @@ impl SignalState {
             panic!();
         }
         matches!(self.kind, SignalStateKind::HashPossiblySubmitted)
+    }
+    pub const fn is_hash_received(&self) -> bool {
+        matches!(self.kind, SignalStateKindImpl::HashReceived)
     }
 }
 

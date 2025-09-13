@@ -70,4 +70,4 @@ check-protocol = []
 #default = ["flags-type", "asserts",                 "check-protocol"]
 
 # ALL features:
-#default = ["flags-type", "asserts", "check-finish", "check-protocol"]
+default = ["flags-type", "asserts", "check-finish", "check-protocol"]
