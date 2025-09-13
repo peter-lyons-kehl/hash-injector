@@ -11,22 +11,17 @@ use core::marker::ConstParamTy;
 mod state;
 use state::SignalState;
 
-#[cfg(all(feature = "check-protocol", not(feature = "check-finish")))]
-const _SAME_FLOW_CHECK_REQUIRES_FINISH_CHECK: () = {
-    panic!("Feature check-protocol is enabled, but it requires feature check-finish, too.");
-};
-
 /// A fictitious slice length, which represents a signal that we either just handed an injected
 /// hash, or we are about to hand it - depending on whether we signal first, or submit first.
-const SIGNALLING: usize = usize::MAX;
+const FICTITIOUS_LEN_SIGNALLING: usize = usize::MAX;
 
 #[cfg(feature = "check-protocol")]
 /// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation submits a hash
 /// first (before signalling).
-const EXPECTING_SUBMIT_FIRST_METHOD: usize = usize::MAX - 1;
+const FICTITIOUS_LEN_EXPECTING_SUBMIT_FIRST_METHOD: usize = usize::MAX - 1;
 #[cfg(feature = "check-protocol")]
 /// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation signals first (before submitting a hash).
-const EXPECTING_SIGNAL_FIRST_METHOD: usize = usize::MAX - 2;
+const FICTITIOUS_LEN_EXPECTING_SIGNAL_FIRST_METHOD: usize = usize::MAX - 2;
 
 /// An enum-like Type for const generic parameter `PF`. Use `new_flags_xxx` functions to create the
 /// values.
@@ -106,11 +101,11 @@ pub fn signal_inject_hash<H: Hasher, const PF: ProtocolFlags>(hasher: &mut H, ha
     // The order of operations is intentionally different for SIGNAL_FIRST. This (hopefully) helps us
     // notice any logical errors or opportunities for improvement in this module earlier.
     if signal_first(PF) {
-        hasher.write_length_prefix(SIGNALLING);
+        hasher.write_length_prefix(FICTITIOUS_LEN_SIGNALLING);
         hasher.write_u64(hash);
     } else {
         hasher.write_u64(hash);
-        hasher.write_length_prefix(SIGNALLING);
+        hasher.write_length_prefix(FICTITIOUS_LEN_SIGNALLING);
     }
     // Check that finish() does return the signalled hash. We do this BEFORE
     // check-protocol-based checks (if any).
@@ -119,9 +114,9 @@ pub fn signal_inject_hash<H: Hasher, const PF: ProtocolFlags>(hasher: &mut H, ha
 
     #[cfg(feature = "check-protocol")]
     hasher.write_length_prefix(if signal_first(PF) {
-        EXPECTING_SIGNAL_FIRST_METHOD
+        FICTITIOUS_LEN_EXPECTING_SIGNAL_FIRST_METHOD
     } else {
-        EXPECTING_SUBMIT_FIRST_METHOD
+        FICTITIOUS_LEN_EXPECTING_SUBMIT_FIRST_METHOD
     });
 }
 
@@ -213,6 +208,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
         self.written_ordinary_hash();
     }
     fn write_u64(&mut self, i: u64) {
+        // the outer if check can get optimized away (const)
         if signal_first(PF) {
             if self.state.is_signalled_proposal_coming(PF) {
                 self.state = SignalState::new_hash_received(i);
@@ -287,17 +283,18 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
         self.written_ordinary_hash();
     }
     fn write_length_prefix(&mut self, len: usize) {
+        // the outer if check can get optimized away (const)
         if signal_first(PF) {
-            if len == SIGNALLING {
+            if len == FICTITIOUS_LEN_SIGNALLING {
                 self.assert_nothing_written();
                 self.state.set_signalled_proposal_coming(PF);
             } else {
                 #[cfg(feature = "check-protocol")]
                 {
-                    if len == EXPECTING_SIGNAL_FIRST_METHOD {
-                        return;
+                    if len == FICTITIOUS_LEN_EXPECTING_SIGNAL_FIRST_METHOD {
+                        return; // just being checked (no data to write)
                     }
-                    assert_ne!(len, EXPECTING_SUBMIT_FIRST_METHOD);
+                    assert_ne!(len, FICTITIOUS_LEN_EXPECTING_SUBMIT_FIRST_METHOD);
                 }
 
                 self.assert_nothing_written_or_ordinary_hash();
@@ -305,7 +302,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                 self.written_ordinary_hash();
             }
         } else {
-            if len == SIGNALLING {
+            if len == FICTITIOUS_LEN_SIGNALLING {
                 if self.state.is_hash_possibly_submitted(PF) {
                     self.state.set_hash_received();
                 } else {
@@ -322,10 +319,10 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
             } else {
                 #[cfg(feature = "check-protocol")]
                 {
-                    if len == EXPECTING_SUBMIT_FIRST_METHOD {
-                        return;
+                    if len == FICTITIOUS_LEN_EXPECTING_SUBMIT_FIRST_METHOD {
+                        return; // just being checked (no data to write)
                     }
-                    assert_ne!(len, EXPECTING_SIGNAL_FIRST_METHOD);
+                    assert_ne!(len, FICTITIOUS_LEN_EXPECTING_SIGNAL_FIRST_METHOD);
                 }
 
                 self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();

@@ -45,9 +45,7 @@ check-finish = []
 # Check that signal)first(F) for const generic F is the same between `signal_inject_hash(...)` and
 # `SignalledInjectionHasher`.
 #
-# Use ONLY if check-finish is enabled, too.
-#
-# NOT much more expensive than check-finish.
+# NOT very expensive.
 check-protocol = []
 
 #default = [              "asserts"]
@@ -70,4 +68,4 @@ check-protocol = []
 #default = ["flags-type", "asserts",                 "check-protocol"]
 
 # ALL features:
-# default = ["flags-type", "asserts", "check-finish", "check-protocol"]
+#default = ["flags-type", "asserts", "check-finish", "check-protocol"]
