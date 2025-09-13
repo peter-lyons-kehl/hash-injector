@@ -97,7 +97,6 @@ impl SignalState {
     }
 
     // Queries (some used by asserts only). In order of SignalStateKind's usual lifecycle.
-    #[cfg(feature = "asserts")]
     pub const fn is_nothing_written(&self) -> bool {
         //@TODO replace with matches!(..)
         matches!(self.kind, SignalStateKind::NothingWritten)

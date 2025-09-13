@@ -32,36 +32,28 @@ pub type ProtocolFlags = ProtocolFlagsImpl;
 
 // If we ever have more than one flag, then change this into e.g. u8.
 #[cfg(not(feature = "flags-type"))]
-type ProtocolFlagsImpl = bool;
+type ProtocolFlagsImpl = u8;
 
 #[cfg(feature = "flags-type")]
-/// Type for const generic parameter `F`.
+/// Type for const generic parameter `PF`.
 #[derive(ConstParamTy, Clone, Copy, PartialEq, Eq)]
 pub struct ProtocolFlagsImpl {
     signal_first: bool,
 }
-pub const fn flags_signal_first() -> ProtocolFlags {
-    #[cfg(not(feature = "flags-type"))]
-    {
-        true
-    }
-    #[cfg(feature = "flags-type")]
-    ProtocolFlags { signal_first: true }
+
+#[cfg(not(feature = "flags-type"))]
+const FLAGS_BIT_VIA_LEN: u8 = 0b1;
+#[cfg(not(feature = "flags-type"))]
+const FLAGS_BIT_SIGNAL_FIRST: u8 = 0b10;
+
+const fn signal_via_len(flags: ProtocolFlags) -> bool {
+    flags & FLAGS_BIT_VIA_LEN != 0
 }
-pub const fn flags_submit_first() -> ProtocolFlags {
-    #[cfg(not(feature = "flags-type"))]
-    {
-        false
-    }
-    #[cfg(feature = "flags-type")]
-    ProtocolFlags {
-        signal_first: false,
-    }
-}
+
 const fn signal_first(flags: ProtocolFlags) -> bool {
     #[cfg(not(feature = "flags-type"))]
     {
-        flags
+        flags & FLAGS_BIT_SIGNAL_FIRST != 0
     }
     #[cfg(feature = "flags-type")]
     {
@@ -71,11 +63,30 @@ const fn signal_first(flags: ProtocolFlags) -> bool {
 const fn submit_first(flags: ProtocolFlags) -> bool {
     #[cfg(not(feature = "flags-type"))]
     {
-        !flags
+        flags & FLAGS_BIT_SIGNAL_FIRST == 0
     }
     #[cfg(feature = "flags-type")]
     {
         !flags.signal_first
+    }
+}
+
+pub const fn len_flags_signal_first() -> ProtocolFlags {
+    #[cfg(not(feature = "flags-type"))]
+    {
+        FLAGS_BIT_VIA_LEN & FLAGS_BIT_SIGNAL_FIRST
+    }
+    #[cfg(feature = "flags-type")]
+    ProtocolFlags { signal_first: true }
+}
+pub const fn len_flags_submit_first() -> ProtocolFlags {
+    #[cfg(not(feature = "flags-type"))]
+    {
+        FLAGS_BIT_VIA_LEN
+    }
+    #[cfg(feature = "flags-type")]
+    ProtocolFlags {
+        signal_first: false,
     }
 }
 
