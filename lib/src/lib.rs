@@ -71,7 +71,7 @@ const fn is_submit_first(flags: ProtocolFlags) -> bool {
     }
 }
 
-pub const fn len_flags_signal_first() -> ProtocolFlags {
+pub const fn new_flags_len_signal_first() -> ProtocolFlags {
     #[cfg(not(feature = "flags-type"))]
     {
         FLAGS_BIT_VIA_LEN & FLAGS_BIT_SIGNAL_FIRST
@@ -79,7 +79,7 @@ pub const fn len_flags_signal_first() -> ProtocolFlags {
     #[cfg(feature = "flags-type")]
     ProtocolFlags { signal_first: true }
 }
-pub const fn len_flags_submit_first() -> ProtocolFlags {
+pub const fn new_flags_len_submit_first() -> ProtocolFlags {
     #[cfg(not(feature = "flags-type"))]
     {
         FLAGS_BIT_VIA_LEN
