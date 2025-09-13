@@ -20,12 +20,13 @@ const _SAME_FLOW_CHECK_REQUIRES_FINISH_CHECK: () = {
 /// hash, or we are about to hand it - depending on whether we signal first, or submit first.
 const SIGNALLING: usize = usize::MAX;
 
-/// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation submits a hash first (before signalling).
 #[cfg(feature = "check-protocol")]
-const EXPECTING_SUBMIT_FIRST_METHOD: usize = usize::MAX - 2;
+/// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation submits a hash
+/// first (before signalling).
+const EXPECTING_SUBMIT_FIRST_METHOD: usize = usize::MAX - 1;
 #[cfg(feature = "check-protocol")]
 /// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation signals first (before submitting a hash).
-const EXPECTING_SIGNAL_FIRST_METHOD: usize = usize::MAX - 1;
+const EXPECTING_SIGNAL_FIRST_METHOD: usize = usize::MAX - 2;
 
 /// An enum-like Type for const generic parameter `PF`. Use `new_flags_xxx` functions to create the
 /// values.
@@ -225,10 +226,16 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
             // If we are indeed signalling, then after the following write_u64(...) the value
             // written to the underlying Hasher will NOT be used, because finish(&self) then returns
             // the injected hash - instead of calling the underlying Hasher's finish(). So, the
-            // compiler can optimize the following call away (thanks to Hasher objects being passed
+            // compiler MAY optimize the following call away (thanks to Hasher objects being passed
             // by generic reference - instead of a &dyn trait reference):
             self.hasher.write_u64(i);
-            self.state = SignalState::new_hash_possibly_submitted(i, PF);
+            if self.state.is_nothing_written() {
+                self.state = SignalState::new_hash_possibly_submitted(i, PF);
+            } else {
+                // In case the hash was "possibly_submitted", submitting any more data (u64 or
+                // otherwise) invalidates it.
+                self.state.set_written_ordinary_hash();
+            }
         }
     }
     #[inline]

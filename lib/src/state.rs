@@ -24,6 +24,8 @@ enum SignalStateKindImpl {
     // Used ONLY when submit_first(PF)==true.
     HashPossiblySubmitted = 3,
 
+    // @TODO if submit_first(PF)==true and the client writes u64 twice, then switch to WrittenOrdinaryHash
+    //
     HashReceived = 4,
 }
 
