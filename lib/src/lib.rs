@@ -1,14 +1,17 @@
 #![doc = include_str!("../../README.md")]
-#![no_std]
+#![cfg_attr(not(feature = "ptr"), no_std)]
 #![cfg_attr(not(feature = "unsafe"), forbid(unsafe_code))]
+// @TODO comment out:
 #![cfg_attr(feature = "unsafe", feature(const_index))] // https://github.com/rust-lang/rust/issues/143775
+// @TODO comment out:
 #![cfg_attr(feature = "unsafe", feature(const_trait_impl))] // https://github.com/rust-lang/rust/issues/143874
+#![cfg_attr(feature = "ptr", feature(mutex_data_ptr))] // https://github.com/rust-lang/rust/issues/140368
 #![feature(hasher_prefixfree_extras)]
 #![cfg_attr(feature = "flags-type", feature(adt_const_params))]
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "string")]
 extern crate alloc;
-#[cfg(feature = "alloc")]
+#[cfg(feature = "string")]
 use alloc::string::String;
 
 use core::hash::{BuildHasher, Hasher};
@@ -18,53 +21,72 @@ use core::marker::ConstParamTy;
 use core::str;
 use state::SignalState;
 
+use std::sync::Mutex;
+
 mod state;
 
 /// A fictitious slice length, which represents a signal that we either just handed an injected
 /// hash, or we are about to hand it - depending on whether we signal first, or submit first.
 const FICTITIOUS_LEN_SIGNALLING: usize = usize::MAX;
 
-#[cfg(feature = "check-protocol")]
+#[cfg(feature = "check-flow")]
 /// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation submits a hash
 /// first (before signalling).
 const FICTITIOUS_LEN_EXPECTING_SUBMIT_FIRST_METHOD: usize = usize::MAX - 1;
-#[cfg(feature = "check-protocol")]
+#[cfg(feature = "check-flow")]
 /// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation signals first (before submitting a hash).
 const FICTITIOUS_LEN_EXPECTING_SIGNAL_FIRST_METHOD: usize = usize::MAX - 2;
 
 #[cfg(feature = "unsafe")]
+/// This has to be mutable, so that the compiler or LLVM doesn't optimize it away and de-duplicate.
 static mut SIGNAL_ARR: [u8; 2] = [b'a', b'b'];
 #[cfg(feature = "unsafe")]
 pub static SLICE: &'static str = {
     if let Ok(slice) = str::from_utf8(
-        #[allow(static_mut_refs)]
+        //#[allow(static_mut_refs)]
         unsafe {
-            &SIGNAL_ARR
+            let ptr = &raw const SIGNAL_ARR as *mut [u8; 2];
+            //&[b'a', b'b']
+            &*ptr
         },
     ) {
-        //alloc::boxed::Box::new(());
         hint::black_box(slice)
     } else {
         panic!();
     }
 };
+
+static mut GLOBAL_VAR: i32 = 0;
+
+fn fff() {
+    unsafe {
+        let raw_pointer = &raw mut GLOBAL_VAR as *mut i32;
+        *raw_pointer = 1; // Unsafe dereference
+    }
+}
 #[cfg(feature = "unsafe")]
 static SIGNAL_STRS: SignalStrs = {
-    if let Ok(slice) = str::from_utf8(
-        #[allow(static_mut_refs)]
-        unsafe {
-            &SIGNAL_ARR
-        },
-    ) {
+    if let Ok(slice) = str::from_utf8(unsafe {
+        // We pass the pointer to black_box(...) as a mut pointer, so that Rust or LLVM doesn't
+        // optimize it away and doesn't de-duplicate.
+        let ptr = hint::black_box(&raw mut SIGNAL_ARR) as *const [u8; 2];
+        &*ptr
+    }) {
         assert!(slice.len() >= 2);
-        hint::black_box(SignalStrs {
+        SignalStrs {
             signalling: slice,
             expecting_submit_first_method: &slice[1..],
             expecting_signal_first_method: &slice[2..],
-        })
+        }
     } else {
         panic!();
     }
+};
+
+#[cfg(feature = "string")] // TODO feature: std
+static ARR_MX: Mutex<[u8; 2]> = Mutex::new([b'a', b'b']);
+static SIGNAL_STRS_MX: () = {
+    //ARR_MX.data_ptr();
 };
 
 /// An enum-like Type for const generic parameter `PF`. Use `new_flags_xxx` functions to create the
@@ -262,11 +284,11 @@ where
         hasher.write_length_prefix(FICTITIOUS_LEN_SIGNALLING);
     }
     // Check that finish() does return the signalled hash. We do this BEFORE
-    // check-protocol-based checks (if any).
-    #[cfg(feature = "check-finish")]
+    // check-flow-based checks (if any).
+    #[cfg(feature = "check-hash")]
     assert_eq!(hasher.finish(), hash);
 
-    #[cfg(feature = "check-protocol")]
+    #[cfg(feature = "check-flow")]
     hasher.write_length_prefix(if is_signal_first(PF) {
         FICTITIOUS_LEN_EXPECTING_SIGNAL_FIRST_METHOD
     } else {
@@ -319,7 +341,7 @@ const fn c_sstr<S: SignalStrTr + ?Sized>(s: &'static S) {}
 const CS: () = c_sstr("a");
 const CW: () = c_sstr(&WrapStr("a"));
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "string")]
 impl From<String> for WrapStr {
     /// Parameter `s` needs to have length at least 2
     fn from(s: String) -> Self {
@@ -346,7 +368,7 @@ fn u_str() -> &'static str {
 /// Indicates static `str` slices to use for
 /// - signalling (that a hash is about to be submitted, or that a hash has been just submitted), and
 /// - validation that the [Hasher] uses same protocol (submit first, or signal first) - if enabled
-///   with cargo feature `check-protocol`.
+///   with cargo feature `check-flow`.
 ///
 /// Its fields are intentionally not public, so that the struct can't be constructed publicly.
 /// Otherwise users could accidentally pass static string slices that share addresses with other
@@ -355,19 +377,19 @@ fn u_str() -> &'static str {
 pub struct SignalStrs {
     /// Respective to [FICTITIOUS_LEN_SIGNALLING].
     signalling: &'static str,
-    #[cfg(feature = "check-protocol")]
+    #[cfg(feature = "check-flow")]
     /// Respective to [FICTITIOUS_LEN_EXPECTING_SUBMIT_FIRST_METHOD].
     expecting_submit_first_method: &'static str,
-    #[cfg(feature = "check-protocol")]
+    #[cfg(feature = "check-flow")]
     /// Respective to [FICTITIOUS_LEN_EXPECTING_SIGNAL_FIRST_METHOD].
     expecting_signal_first_method: &'static str,
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "string")]
 impl From<String> for SignalStrs {
     /// Parameter `s` needs to have length at least 2 characters, AND they need to be ASCII. This
     /// may create appropriate sub-slices. (Sub-slices are created only if needed, depending on
-    /// `check-protocol` cargo feature. However, for consistency, we require that length regardless
+    /// `check-flow` cargo feature. However, for consistency, we require that length regardless
     /// of the cargo feature.)
     fn from(s: String) -> Self {
         assert!(s.len() >= 2);
@@ -380,7 +402,7 @@ impl From<String> for SignalStrs {
     }
 }
 
-/// We pass `signal_str` by value (rather than by reference), because if `check-protocol` cargo
+/// We pass `signal_str` by value (rather than by reference), because if `check-flow` cargo
 /// feature is disabled then [SignalStrs] is small.
 pub fn inject_via_str<H: Hasher, const PF: ProtocolFlags>(
     hasher: &mut H,
@@ -565,7 +587,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                 self.assert_nothing_written();
                 self.state.set_signalled_proposal_coming(PF);
             } else {
-                #[cfg(feature = "check-protocol")]
+                #[cfg(feature = "check-flow")]
                 {
                     if len == FICTITIOUS_LEN_EXPECTING_SIGNAL_FIRST_METHOD {
                         return; // just being checked (no data to write)
@@ -593,7 +615,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                     self.written_ordinary_hash();
                 }
             } else {
-                #[cfg(feature = "check-protocol")]
+                #[cfg(feature = "check-flow")]
                 {
                     if len == FICTITIOUS_LEN_EXPECTING_SUBMIT_FIRST_METHOD {
                         return; // just being checked (no data to write)

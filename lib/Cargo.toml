@@ -26,12 +26,14 @@ unexpected_cfgs = { level = "forbid"}
 
 # TODO Serde
 
-alloc = []
+# Whether to implement From<String> for SignalStrs, so that the consumer can provide her/his own
+# String that is used for string slices when signalling. It requires "alloc" library.
+string = []
 
 # Expensive
 asserts = []
 
-# Whether to use a higher level type for the const generic parameter type ProtocolFlags.
+# Whether to use a higher level type for the const generic parameter type ProtocolFlags. Requires nightly toolchain.
 flags-type = []
 
 # Use to check that the Hasher is (or behaves like) `SignalledInjectionHasher`. Use only if the
@@ -42,45 +44,60 @@ flags-type = []
 # - the underlying Hasher (its `finish(self)`), or
 # - the "original" hashed type containing (directly or indirectly) arrays or slices, especially if
 #   multiple.
-check-finish = []
+check-hash = []
 
 # Check that signal)first(F) for const generic F is the same between `signal_inject_hash(...)` and
 # `SignalledInjectionHasher`.
 #
 # NOT very expensive.
-check-protocol = []
+check-flow = []
+
+# Using Mutex's data_ptr function to get signalling string slices. It requires "std" library and
+# nightly toolchain.
+#
+# It requires "unsafe" feature, but it does NOT imply/include it. That forces the consumer to
+# confirm that she/he wants unsafe code.
+ptr = []
+
+# Using LazyLock. It requires "std" library, but it uses safe code. Slower than Mutex with "ptr"
+# feature.
+lazy = []
 
 # Whether to use unsafe. It's used only for creation of static signalling string slices.
 unsafe = []
 
-#default = [                       "asserts"]
-#default = ["alloc",               "asserts"]
-#default = [                       "asserts", "check-finish"]
+# Some combinations of features. Do leave spaces on empty lines, for up & down navigation.
+#default = [                        "asserts"]
+#default = ["string",               "asserts"]
+#default = [                        "asserts", "check-hash"]
+                                                                                                     
+#default = [                                                   "check-flow"]
+                                                                                                      
+#default = [                        "asserts",                 "check-flow"]
+#default = [                        "asserts",                                   "ptr",              "unsafe"]
+#default = [                        "asserts",                                               "lazy"]
+#default = [                        "asserts",                                   "ptr", "lazy", "unsafe"]
+#default = [                        "asserts",                 "check-flow", "ptr",              "unsafe"]
+#default = [                        "asserts",                 "check-flow",             "lazy"]
 
-# NOT allowed:
-#default = [                                                  "check-protocol"]
-# NOT allowed:
-#default = [                       "asserts",                 "check-protocol"]
-#default = [                       "asserts",                                   "unsafe"]
-#default = [                       "asserts",                 "check-protocol", "unsafe"]
+#default = [                        "asserts", "check-hash", "check-flow"]
+#default = [                        "asserts", "check-hash", "check-flow", "ptr", "unsafe"]
+#default = ["string",               "asserts", "check-hash", "check-flow"]
 
-#default = [                       "asserts", "check-finish", "check-protocol"]
-#default = [                       "asserts", "check-finish", "check-protocol", "unsafe"]
-#default = ["alloc",               "asserts",                                   "unsafe"]
-#default = [         "flags-type"]
-#default = [         "flags-type", "asserts"]
-#default = [         "flags-type", "asserts", "check-finish"]
-
-#default = [         "flags-type",                            "check-protocol"]
-#default = [         "flags-type",                            "check-protocol"]
-#default = ["alloc", "flags-type",                            "check-protocol"]
-#default = ["alloc", "flags-type",            "check-finish", "check-protocol"]
-
-#default = ["alloc", "flags-type",                            "check-protocol", "unsafe"]
-#default = ["alloc", "flags-type",            "check-finish", "check-protocol", "unsafe"]
-
-#default = ["alloc", "flags-type", "asserts",                 "check-protocol"]
-#default = ["alloc", "flags-type", "asserts", "check-finish", "check-protocol"]
-
+#default = [          "flags-type"]
+#default = [          "flags-type", "asserts"]
+#default = [          "flags-type", "asserts", "check-hash"]
+                                                                                                     
+#default = [          "flags-type",                            "check-flow"]
+#default = [          "flags-type",                            "check-flow"]
+#default = ["string", "flags-type",                            "check-flow"]
+#default = ["string", "flags-type",            "check-hash", "check-flow"]
+                                                                                                     
+#default = ["string", "flags-type",                            "check-flow", "ptr", "unsafe"]
+#default = ["string", "flags-type",            "check-hash", "check-flow", "ptr", "unsafe"]
+                                                                                                     
+#default = ["string", "flags-type", "asserts",                 "check-flow"]
+#default = ["string", "flags-type", "asserts", "check-hash", "check-flow"]
+                                                                                                     
 # ALL features:
-#default = ["alloc", "flags-type", "asserts", "check-finish", "check-protocol", "unsafe"]
+default = ["string",  "flags-type", "asserts", "check-hash", "check-flow", "ptr", "lazy", "unsafe"]
