@@ -1,15 +1,19 @@
 #![doc = include_str!("../../README.md")]
 #![no_std]
-#![forbid(unsafe_code)]
+//#![forbid(unsafe_code)]
 #![feature(hasher_prefixfree_extras)]
 #![cfg_attr(feature = "flags-type", feature(adt_const_params))]
 
+//extern crate alloc;
+
 use core::hash::{BuildHasher, Hasher};
+use core::hint;
 #[cfg(feature = "flags-type")]
 use core::marker::ConstParamTy;
+use core::str;
+use state::SignalState;
 
 mod state;
-use state::SignalState;
 
 /// A fictitious slice length, which represents a signal that we either just handed an injected
 /// hash, or we are about to hand it - depending on whether we signal first, or submit first.
@@ -22,6 +26,21 @@ const FICTITIOUS_LEN_EXPECTING_SUBMIT_FIRST_METHOD: usize = usize::MAX - 1;
 #[cfg(feature = "check-protocol")]
 /// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation signals first (before submitting a hash).
 const FICTITIOUS_LEN_EXPECTING_SIGNAL_FIRST_METHOD: usize = usize::MAX - 2;
+
+static mut ARR: [u8; 1] = [b'a'];
+pub static SLICE: &'static str = {
+    if let Ok(slice) = str::from_utf8(
+        #[allow(static_mut_refs)]
+        unsafe {
+            &ARR
+        },
+    ) {
+        //alloc::boxed::Box::new(());
+        hint::black_box(slice)
+    } else {
+        panic!();
+    }
+};
 
 /// An enum-like Type for const generic parameter `PF`. Use `new_flags_xxx` functions to create the
 /// values.
@@ -46,6 +65,8 @@ pub struct ProtocolFlagsImpl {
 const FLAGS_BIT_VIA_LEN: u8 = 0b1;
 #[cfg(not(feature = "flags-type"))]
 const FLAGS_BIT_SIGNAL_FIRST: u8 = 0b10;
+#[cfg(not(feature = "flags-type"))]
+const FLAGS_MAX: u8 = 0b11;
 
 /// Whether this protocol signals with a fictitious length, that is, via
 /// [`Hasher::write_length_prefix`]. Otherwise it signals with a special string slice `&str`, that
@@ -53,6 +74,8 @@ const FLAGS_BIT_SIGNAL_FIRST: u8 = 0b10;
 const fn is_signal_via_len(flags: ProtocolFlags) -> bool {
     #[cfg(not(feature = "flags-type"))]
     {
+        #[cfg(feature = "asserts")]
+        assert!(flags <= FLAGS_MAX);
         flags & FLAGS_BIT_VIA_LEN != 0
     }
     #[cfg(feature = "flags-type")]
@@ -65,6 +88,8 @@ const fn is_signal_via_len(flags: ProtocolFlags) -> bool {
 const fn is_signal_first(flags: ProtocolFlags) -> bool {
     #[cfg(not(feature = "flags-type"))]
     {
+        #[cfg(feature = "asserts")]
+        assert!(flags <= FLAGS_MAX);
         flags & FLAGS_BIT_SIGNAL_FIRST != 0
     }
     #[cfg(feature = "flags-type")]
@@ -76,6 +101,8 @@ const fn is_signal_first(flags: ProtocolFlags) -> bool {
 const fn is_submit_first(flags: ProtocolFlags) -> bool {
     #[cfg(not(feature = "flags-type"))]
     {
+        #[cfg(feature = "asserts")]
+        assert!(flags <= FLAGS_MAX);
         flags & FLAGS_BIT_SIGNAL_FIRST == 0
     }
     #[cfg(feature = "flags-type")]
@@ -113,7 +140,7 @@ pub const fn new_flags_len_submit_first() -> ProtocolFlags {
     }
 }
 /// Protocol that
-/// - signals with a  special string slice `&str (via [`Hasher::write_str`]), and
+/// - signals with a  special string slice `&str` (via [`Hasher::write_str`]), and
 /// - signals before it submits the hash.
 pub const fn new_flags_str_signal_first() -> ProtocolFlags {
     #[cfg(not(feature = "flags-type"))]
@@ -127,7 +154,7 @@ pub const fn new_flags_str_signal_first() -> ProtocolFlags {
     }
 }
 /// Protocol that
-/// - signals with a  special string slice `&str (via [`Hasher::write_str`]), and
+/// - signals with a  special string slice `&str` (via [`Hasher::write_str`]), and
 /// - submits the hash before it signals.
 pub const fn new_flags_str_submit_first() -> ProtocolFlags {
     #[cfg(not(feature = "flags-type"))]
@@ -271,6 +298,9 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
     }
     fn write_u64(&mut self, i: u64) {
         // the outer if check can get optimized away (const)
+        if is_signal_via_len(PF) {
+            // @TODO
+        }
         if is_signal_first(PF) {
             if self.state.is_signalled_proposal_coming(PF) {
                 self.state = SignalState::new_hash_received(i);
