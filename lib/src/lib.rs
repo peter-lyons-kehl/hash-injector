@@ -1,11 +1,15 @@
 #![doc = include_str!("../../README.md")]
 #![no_std]
-//#![forbid(unsafe_code)]
+#![cfg_attr(not(feature = "unsafe"), forbid(unsafe_code))]
+#![cfg_attr(feature = "unsafe", feature(const_index))] // https://github.com/rust-lang/rust/issues/143775
+#![cfg_attr(feature = "unsafe", feature(const_trait_impl))] // https://github.com/rust-lang/rust/issues/143874
 #![feature(hasher_prefixfree_extras)]
 #![cfg_attr(feature = "flags-type", feature(adt_const_params))]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
+#[cfg(feature = "alloc")]
+use alloc::string::String;
 
 use core::hash::{BuildHasher, Hasher};
 use core::hint;
@@ -28,16 +32,36 @@ const FICTITIOUS_LEN_EXPECTING_SUBMIT_FIRST_METHOD: usize = usize::MAX - 1;
 /// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation signals first (before submitting a hash).
 const FICTITIOUS_LEN_EXPECTING_SIGNAL_FIRST_METHOD: usize = usize::MAX - 2;
 
-static mut ARR: [u8; 1] = [b'a'];
+#[cfg(feature = "unsafe")]
+static mut SIGNAL_ARR: [u8; 2] = [b'a', b'b'];
+#[cfg(feature = "unsafe")]
 pub static SLICE: &'static str = {
     if let Ok(slice) = str::from_utf8(
         #[allow(static_mut_refs)]
         unsafe {
-            &ARR
+            &SIGNAL_ARR
         },
     ) {
         //alloc::boxed::Box::new(());
         hint::black_box(slice)
+    } else {
+        panic!();
+    }
+};
+#[cfg(feature = "unsafe")]
+static SIGNAL_STRS: SignalStrs = {
+    if let Ok(slice) = str::from_utf8(
+        #[allow(static_mut_refs)]
+        unsafe {
+            &SIGNAL_ARR
+        },
+    ) {
+        assert!(slice.len() >= 2);
+        hint::black_box(SignalStrs {
+            signalling: slice,
+            expecting_submit_first_method: &slice[1..],
+            expecting_signal_first_method: &slice[2..],
+        })
     } else {
         panic!();
     }
@@ -70,8 +94,8 @@ const FLAGS_BIT_SIGNAL_FIRST: ProtocolFlags = 0b10;
 const FLAGS_MAX: ProtocolFlags = 0b11;
 
 /// Whether this protocol signals with a fictitious length, that is, via
-/// [`Hasher::write_length_prefix`]. Otherwise it signals with a special string slice `&str`, that
-/// is, via [`Hasher::write_str`].
+/// [`Hasher::write_length_prefix`]. Otherwise it signals with a special static string slice `&str`,
+/// that is, via [`Hasher::write_str`].
 const fn is_signal_via_len(flags: ProtocolFlags) -> bool {
     #[cfg(not(feature = "flags-type"))]
     {
@@ -81,6 +105,20 @@ const fn is_signal_via_len(flags: ProtocolFlags) -> bool {
     #[cfg(feature = "flags-type")]
     {
         !flags.signal_via_str
+    }
+}
+/// Whether this protocol signals with a special static string slice `&str, that is, via
+///  [`Hasher::write_str`]. Otherwise it signals with a fictitious length, that is, via
+/// [`Hasher::write_length_prefix`].
+const fn is_signal_via_str(flags: ProtocolFlags) -> bool {
+    #[cfg(not(feature = "flags-type"))]
+    {
+        debug_assert!(flags <= FLAGS_MAX);
+        flags & FLAGS_BIT_VIA_STR != 0
+    }
+    #[cfg(feature = "flags-type")]
+    {
+        flags.signal_via_str
     }
 }
 
@@ -212,8 +250,10 @@ pub fn inject_via_len<H: Hasher, const PF: ProtocolFlags>(hasher: &mut H, hash: 
 where
     _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,
 {
-    // The order of operations is intentionally different for SIGNAL_FIRST. This (hopefully) helps us
-    // notice any logical errors or opportunities for improvement in this module earlier.
+    // extra check, in addition to the check with _ProtocolFlagsSignalledViaLen
+    debug_assert!(is_signal_via_len(PF));
+    // The order of operations is intentionally different for SIGNAL_FIRST. This (hopefully) helps
+    // us notice any logical errors or opportunities for improvement in this module earlier.
     if is_signal_first(PF) {
         hasher.write_length_prefix(FICTITIOUS_LEN_SIGNALLING);
         hasher.write_u64(hash);
@@ -252,22 +292,22 @@ impl LikeStr for str {
 const fn c_str<S: LikeStr + ?Sized>(s: &'static S) {}
 const C: () = c_str("a");
 
-pub trait SignalStr {
+pub trait SignalStrTr {
     #[allow(private_interfaces)]
     fn sealed_trait(_: &SealedTraitParam);
     fn slice(&'static self) -> &'static str;
 }
-// Intentionally private, so that users don't accidentally pass static string slices that share
-// addresses with other data.
-struct WrapStr(&'static str);
-impl SignalStr for str {
+// Its field is intentionally not public, so that the struct can't be constructed publicly, so that
+// users don't accidentally pass static string slices that share addresses with other data.
+pub struct WrapStr(&'static str);
+impl SignalStrTr for str {
     #[allow(private_interfaces)]
     fn sealed_trait(_: &SealedTraitParam) {}
     fn slice(&'static self) -> &'static str {
         self
     }
 }
-impl SignalStr for WrapStr {
+impl SignalStrTr for WrapStr {
     #[allow(private_interfaces)]
     fn sealed_trait(_: &SealedTraitParam) {}
     fn slice(&'static self) -> &'static str {
@@ -275,14 +315,82 @@ impl SignalStr for WrapStr {
     }
 }
 
-const fn c_sstr<S: SignalStr + ?Sized>(s: &'static S) {}
+const fn c_sstr<S: SignalStrTr + ?Sized>(s: &'static S) {}
 const CS: () = c_sstr("a");
 const CW: () = c_sstr(&WrapStr("a"));
 
-pub fn inject_via_str<H: Hasher, const PF: ProtocolFlags>(hasher: &mut H, hash: u64)
-where
+#[cfg(feature = "alloc")]
+impl From<String> for WrapStr {
+    /// Parameter `s` needs to have length at least 2
+    fn from(s: String) -> Self {
+        assert!(s.len() >= 2);
+        Self(s.leak())
+    }
+}
+// This would require:
+// - #![feature(const_index)] - https://github.com/rust-lang/rust/issues/143775
+// - #![feature(const_trait_impl)] - https://github.com/rust-lang/rust/issues/143874
+//
+//const USB_STR: &'static str = &"abc"[0..1];
+
+fn u_str() -> &'static str {
+    &"abc"[0..1]
+}
+
+// We **could** use just one slice whose length is at least 2 characters, and create two shorter
+// subslices. But that would involve UTF-8 checks, and two more unstable features:
+//
+// - #![feature(const_index)] - https://github.com/rust-lang/rust/issues/143775
+// - #![feature(const_trait_impl)] - https://github.com/rust-lang/rust/issues/143874
+//
+/// Indicates static `str` slices to use for
+/// - signalling (that a hash is about to be submitted, or that a hash has been just submitted), and
+/// - validation that the [Hasher] uses same protocol (submit first, or signal first) - if enabled
+///   with cargo feature `check-protocol`.
+///
+/// Its fields are intentionally not public, so that the struct can't be constructed publicly.
+/// Otherwise users could accidentally pass static string slices that share addresses with other
+/// data.
+#[derive(Clone, Copy)]
+pub struct SignalStrs {
+    /// Respective to [FICTITIOUS_LEN_SIGNALLING].
+    signalling: &'static str,
+    #[cfg(feature = "check-protocol")]
+    /// Respective to [FICTITIOUS_LEN_EXPECTING_SUBMIT_FIRST_METHOD].
+    expecting_submit_first_method: &'static str,
+    #[cfg(feature = "check-protocol")]
+    /// Respective to [FICTITIOUS_LEN_EXPECTING_SIGNAL_FIRST_METHOD].
+    expecting_signal_first_method: &'static str,
+}
+
+#[cfg(feature = "alloc")]
+impl From<String> for SignalStrs {
+    /// Parameter `s` needs to have length at least 2 characters, AND they need to be ASCII. This
+    /// may create appropriate sub-slices. (Sub-slices are created only if needed, depending on
+    /// `check-protocol` cargo feature. However, for consistency, we require that length regardless
+    /// of the cargo feature.)
+    fn from(s: String) -> Self {
+        assert!(s.len() >= 2);
+        let s = s.leak();
+        Self {
+            signalling: s,
+            expecting_submit_first_method: &s[1..],
+            expecting_signal_first_method: &s[2..],
+        }
+    }
+}
+
+/// We pass `signal_str` by value (rather than by reference), because if `check-protocol` cargo
+/// feature is disabled then [SignalStrs] is small.
+pub fn inject_via_str<H: Hasher, const PF: ProtocolFlags>(
+    hasher: &mut H,
+    hash: u64,
+    signal_str: SignalStrs,
+) where
     _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaStr,
 {
+    // extra check, in addition to the check with _ProtocolFlagsSignalledViaStr
+    debug_assert!(is_signal_via_str(PF));
 }
 
 pub struct SignalledInjectionHasher<H: Hasher, const PF: ProtocolFlags> {

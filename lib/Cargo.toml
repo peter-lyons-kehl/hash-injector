@@ -26,6 +26,8 @@ unexpected_cfgs = { level = "forbid"}
 
 # TODO Serde
 
+alloc = []
+
 # Expensive
 asserts = []
 
@@ -48,24 +50,37 @@ check-finish = []
 # NOT very expensive.
 check-protocol = []
 
-#default = [              "asserts"]
-#default = [              "asserts", "check-finish"]
+# Whether to use unsafe. It's used only for creation of static signalling string slices.
+unsafe = []
+
+#default = [                       "asserts"]
+#default = ["alloc",               "asserts"]
+#default = [                       "asserts", "check-finish"]
 
 # NOT allowed:
-#default = [                                         "check-protocol"]
+#default = [                                                  "check-protocol"]
 # NOT allowed:
-#default = [              "asserts",                 "check-protocol"]
+#default = [                       "asserts",                 "check-protocol"]
+#default = [                       "asserts",                                   "unsafe"]
+#default = [                       "asserts",                 "check-protocol", "unsafe"]
 
-#default = [              "asserts", "check-finish", "check-protocol"]
+#default = [                       "asserts", "check-finish", "check-protocol"]
+#default = [                       "asserts", "check-finish", "check-protocol", "unsafe"]
+#default = ["alloc",               "asserts",                                   "unsafe"]
+#default = [         "flags-type"]
+#default = [         "flags-type", "asserts"]
+#default = [         "flags-type", "asserts", "check-finish"]
 
-#default = ["flags-type"]
-#default = ["flags-type", "asserts"]
-#default = ["flags-type", "asserts", "check-finish"]
+#default = [         "flags-type",                            "check-protocol"]
+#default = [         "flags-type",                            "check-protocol"]
+#default = ["alloc", "flags-type",                            "check-protocol"]
+#default = ["alloc", "flags-type",            "check-finish", "check-protocol"]
 
-# NOT allowed:
-#default = ["flags-type",                            "check-protocol"]
-# NOT allowed:
-#default = ["flags-type", "asserts",                 "check-protocol"]
+#default = ["alloc", "flags-type",                            "check-protocol", "unsafe"]
+#default = ["alloc", "flags-type",            "check-finish", "check-protocol", "unsafe"]
+
+#default = ["alloc", "flags-type", "asserts",                 "check-protocol"]
+#default = ["alloc", "flags-type", "asserts", "check-finish", "check-protocol"]
 
 # ALL features:
-#default = ["flags-type", "asserts", "check-finish", "check-protocol"]
+#default = ["alloc", "flags-type", "asserts", "check-finish", "check-protocol", "unsafe"]
