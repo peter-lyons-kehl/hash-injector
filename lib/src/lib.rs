@@ -2,7 +2,11 @@
 #![no_std]
 //#![forbid(unsafe_code)]
 #![feature(hasher_prefixfree_extras)]
-#![cfg_attr(feature = "flags-type", feature(adt_const_params))]
+#![cfg_attr(
+    feature = "flags-type",
+    feature(adt_const_params),
+    feature(generic_const_exprs)
+)]
 
 //extern crate alloc;
 
@@ -51,22 +55,22 @@ pub type ProtocolFlags = ProtocolFlagsImpl;
 
 // If we ever have more than one flag, then change this into e.g. u8.
 #[cfg(not(feature = "flags-type"))]
-type ProtocolFlagsImpl = u8;
+type ProtocolFlagsImpl = usize;
 
 #[cfg(feature = "flags-type")]
 /// Type for const generic parameter `PF`.
 #[derive(ConstParamTy, Clone, Copy, PartialEq, Eq)]
 pub struct ProtocolFlagsImpl {
-    signal_via_len: bool,
+    signal_via_str: bool,
     signal_first: bool,
 }
 
 #[cfg(not(feature = "flags-type"))]
-const FLAGS_BIT_VIA_LEN: u8 = 0b1;
+const FLAGS_BIT_VIA_STR: ProtocolFlags = 0b1;
 #[cfg(not(feature = "flags-type"))]
-const FLAGS_BIT_SIGNAL_FIRST: u8 = 0b10;
+const FLAGS_BIT_SIGNAL_FIRST: ProtocolFlags = 0b10;
 #[cfg(not(feature = "flags-type"))]
-const FLAGS_MAX: u8 = 0b11;
+const FLAGS_MAX: ProtocolFlags = 0b11;
 
 /// Whether this protocol signals with a fictitious length, that is, via
 /// [`Hasher::write_length_prefix`]. Otherwise it signals with a special string slice `&str`, that
@@ -74,13 +78,12 @@ const FLAGS_MAX: u8 = 0b11;
 const fn is_signal_via_len(flags: ProtocolFlags) -> bool {
     #[cfg(not(feature = "flags-type"))]
     {
-        #[cfg(feature = "asserts")]
-        assert!(flags <= FLAGS_MAX);
-        flags & FLAGS_BIT_VIA_LEN != 0
+        debug_assert!(flags <= FLAGS_MAX);
+        flags & FLAGS_BIT_VIA_STR == 0
     }
     #[cfg(feature = "flags-type")]
     {
-        flags.signal_via_len
+        !flags.signal_via_str
     }
 }
 
@@ -88,8 +91,7 @@ const fn is_signal_via_len(flags: ProtocolFlags) -> bool {
 const fn is_signal_first(flags: ProtocolFlags) -> bool {
     #[cfg(not(feature = "flags-type"))]
     {
-        #[cfg(feature = "asserts")]
-        assert!(flags <= FLAGS_MAX);
+        debug_assert!(flags <= FLAGS_MAX);
         flags & FLAGS_BIT_SIGNAL_FIRST != 0
     }
     #[cfg(feature = "flags-type")]
@@ -117,11 +119,11 @@ const fn is_submit_first(flags: ProtocolFlags) -> bool {
 pub const fn new_flags_len_signal_first() -> ProtocolFlags {
     #[cfg(not(feature = "flags-type"))]
     {
-        FLAGS_BIT_VIA_LEN & FLAGS_BIT_SIGNAL_FIRST
+        FLAGS_BIT_SIGNAL_FIRST
     }
     #[cfg(feature = "flags-type")]
     ProtocolFlags {
-        signal_via_len: true,
+        signal_via_str: false,
         signal_first: true,
     }
 }
@@ -131,11 +133,11 @@ pub const fn new_flags_len_signal_first() -> ProtocolFlags {
 pub const fn new_flags_len_submit_first() -> ProtocolFlags {
     #[cfg(not(feature = "flags-type"))]
     {
-        FLAGS_BIT_VIA_LEN
+        0
     }
     #[cfg(feature = "flags-type")]
     ProtocolFlags {
-        signal_via_len: true,
+        signal_via_str: false,
         signal_first: false,
     }
 }
@@ -145,11 +147,11 @@ pub const fn new_flags_len_submit_first() -> ProtocolFlags {
 pub const fn new_flags_str_signal_first() -> ProtocolFlags {
     #[cfg(not(feature = "flags-type"))]
     {
-        FLAGS_BIT_VIA_LEN & FLAGS_BIT_SIGNAL_FIRST
+        FLAGS_BIT_VIA_STR & FLAGS_BIT_SIGNAL_FIRST
     }
     #[cfg(feature = "flags-type")]
     ProtocolFlags {
-        signal_via_len: true,
+        signal_via_str: true,
         signal_first: true,
     }
 }
@@ -159,13 +161,33 @@ pub const fn new_flags_str_signal_first() -> ProtocolFlags {
 pub const fn new_flags_str_submit_first() -> ProtocolFlags {
     #[cfg(not(feature = "flags-type"))]
     {
-        FLAGS_BIT_VIA_LEN
+        FLAGS_BIT_VIA_STR
     }
     #[cfg(feature = "flags-type")]
     ProtocolFlags {
-        signal_via_len: true,
+        signal_via_str: true,
         signal_first: false,
     }
+}
+
+/// Marker trait, making separate [signal_inject_hash] implementations easier.
+trait _ProtocolFlagsSignalledViaLen {}
+struct _ProtocolFlagsSubset<const PF: ProtocolFlags>;
+impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new_flags_len_signal_first() }> {}
+impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new_flags_len_submit_first() }> {}
+
+#[cfg(not(feature = "flags-type"))]
+pub fn ff<const PF: ProtocolFlags>()
+where
+    _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,
+{
+}
+#[cfg(feature = "flags-type")]
+//fn ff<const PF: ProtocolFlags>() where [(); is_signal_via_len(PF)]: ProtocolFlagsSignalledViaLen {
+pub fn ff<const PF: ProtocolFlags>()
+where
+    _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,
+{
 }
 
 /// For use with [SignalledInjectionHasher] `created by [SignalledInjectionBuildHasher].
