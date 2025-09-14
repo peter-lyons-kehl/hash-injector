@@ -2,13 +2,10 @@
 #![no_std]
 //#![forbid(unsafe_code)]
 #![feature(hasher_prefixfree_extras)]
-#![cfg_attr(
-    feature = "flags-type",
-    feature(adt_const_params),
-    feature(generic_const_exprs)
-)]
+#![cfg_attr(feature = "flags-type", feature(adt_const_params))]
 
-//extern crate alloc;
+#[cfg(feature = "alloc")]
+extern crate alloc;
 
 use core::hash::{BuildHasher, Hasher};
 use core::hint;
@@ -170,11 +167,14 @@ pub const fn new_flags_str_submit_first() -> ProtocolFlags {
     }
 }
 
-/// Marker trait, making separate [signal_inject_hash] implementations easier.
+/// Marker trait, making separate [inject_via_len] implementations easier.
 trait _ProtocolFlagsSignalledViaLen {}
 struct _ProtocolFlagsSubset<const PF: ProtocolFlags>;
 impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new_flags_len_signal_first() }> {}
 impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new_flags_len_submit_first() }> {}
+trait _ProtocolFlagsSignalledViaStr {}
+impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new_flags_str_signal_first() }> {}
+impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new_flags_str_submit_first() }> {}
 
 #[cfg(not(feature = "flags-type"))]
 pub fn ff<const PF: ProtocolFlags>()
@@ -202,13 +202,16 @@ where
 ///   type, even if the intended hash comes from that vanilla type (by a [Hasher] created by the
 ///   same [BuildHasher]).
 ///
-///   [core::borrow::Borrow]) where that other type does NOT use [signal_inject_hash] (and, for
+///   [core::borrow::Borrow]) where that other type does NOT use [inject_via_len] (and, for
 ///   example, the intended hash comes from that other type's `Hash::hash` on a [Hasher] created by
 ///   the same [BuildHasher].)
 ///
 /// Extra validation of signalling in the user's [core::hash::Hash] implementation is done ONLY in
 /// when built with `asserts` feature.
-pub fn signal_inject_hash<H: Hasher, const PF: ProtocolFlags>(hasher: &mut H, hash: u64) {
+pub fn inject_via_len<H: Hasher, const PF: ProtocolFlags>(hasher: &mut H, hash: u64)
+where
+    _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,
+{
     // The order of operations is intentionally different for SIGNAL_FIRST. This (hopefully) helps us
     // notice any logical errors or opportunities for improvement in this module earlier.
     if is_signal_first(PF) {
@@ -229,6 +232,57 @@ pub fn signal_inject_hash<H: Hasher, const PF: ProtocolFlags>(hasher: &mut H, ha
     } else {
         FICTITIOUS_LEN_EXPECTING_SUBMIT_FIRST_METHOD
     });
+}
+
+struct SealedTraitParam;
+
+pub trait LikeStr {
+    #[allow(private_interfaces)]
+    fn sealed_trait(_: &SealedTraitParam);
+    fn slice(&'static self) -> &'static str;
+}
+impl LikeStr for str {
+    #[allow(private_interfaces)]
+    fn sealed_trait(_: &SealedTraitParam) {}
+    fn slice(&'static self) -> &'static str {
+        self
+    }
+}
+
+const fn c_str<S: LikeStr + ?Sized>(s: &'static S) {}
+const C: () = c_str("a");
+
+pub trait SignalStr {
+    #[allow(private_interfaces)]
+    fn sealed_trait(_: &SealedTraitParam);
+    fn slice(&'static self) -> &'static str;
+}
+// Intentionally private, so that users don't accidentally pass static string slices that share
+// addresses with other data.
+struct WrapStr(&'static str);
+impl SignalStr for str {
+    #[allow(private_interfaces)]
+    fn sealed_trait(_: &SealedTraitParam) {}
+    fn slice(&'static self) -> &'static str {
+        self
+    }
+}
+impl SignalStr for WrapStr {
+    #[allow(private_interfaces)]
+    fn sealed_trait(_: &SealedTraitParam) {}
+    fn slice(&'static self) -> &'static str {
+        self.0
+    }
+}
+
+const fn c_sstr<S: SignalStr + ?Sized>(s: &'static S) {}
+const CS: () = c_sstr("a");
+const CW: () = c_sstr(&WrapStr("a"));
+
+pub fn inject_via_str<H: Hasher, const PF: ProtocolFlags>(hasher: &mut H, hash: u64)
+where
+    _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaStr,
+{
 }
 
 pub struct SignalledInjectionHasher<H: Hasher, const PF: ProtocolFlags> {
@@ -291,7 +345,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
             self.hasher.finish()
         }
     }
-    /// This does NOT signal, even if you handed it the same bytes as [`signal_inject_hash`] passes
+    /// This does NOT signal, even if you handed it the same bytes as [`inject_via_len`] passes
     /// through `write_length_prefix` and `write_u64` when signalling.
     #[inline]
     fn write(&mut self, bytes: &[u8]) {
