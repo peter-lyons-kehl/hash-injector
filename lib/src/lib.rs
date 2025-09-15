@@ -339,8 +339,20 @@ fn u_str() -> &'static str {
     &"abc"[0..1]
 }
 
+/// Used when we signal to signal hwen
+pub trait SignalStrs {
+    /// Respective to [FICTITIOUS_LEN_SIGNALLING].
+    fn signalling(&self) -> &'static str;
+    #[cfg(feature = "check-flow")]
+    /// Respective to [FICTITIOUS_LEN_EXPECTING_SUBMIT_FIRST_METHOD].
+    fn expecting_submit_first_method(&self) -> &'static str;
+    #[cfg(feature = "check-flow")]
+    /// Respective to [FICTITIOUS_LEN_EXPECTING_SIGNAL_FIRST_METHOD].
+    fn expecting_signal_first_method(&self) -> &'static str;
+}
+
 // We **could** use just one slice whose length is at least 2 characters, and create two shorter
-// subslices. But that would involve UTF-8 checks, and two more unstable features:
+// subslices. But that would involve UTF-8 checks, and two more unstable features in `const`:
 //
 // - #![feature(const_index)] - https://github.com/rust-lang/rust/issues/143775
 // - #![feature(const_trait_impl)] - https://github.com/rust-lang/rust/issues/143874
@@ -353,8 +365,7 @@ fn u_str() -> &'static str {
 /// Its fields are intentionally not public, so that the struct can't be constructed publicly.
 /// Otherwise users could accidentally pass static string slices that share addresses with other
 /// data.
-#[derive(Clone, Copy)]
-pub struct SignalStrs {
+pub struct SignalStrsSlices {
     /// Respective to [FICTITIOUS_LEN_SIGNALLING].
     signalling: &'static str,
     #[cfg(feature = "check-flow")]
@@ -366,19 +377,32 @@ pub struct SignalStrs {
 }
 
 #[cfg(feature = "string")]
-impl From<String> for SignalStrs {
-    /// Parameter `s` needs to have length at least 2 characters, AND they need to be ASCII. This
-    /// may create appropriate sub-slices. (Sub-slices are created only if needed, depending on
-    /// `check-flow` cargo feature. However, for consistency, we require that length regardless
-    /// of the cargo feature.)
+impl From<String> for SignalStrsSlices {
+    /// Parameter `s` needs to have length at least 3 characters, AND they need to be ASCII. This
+    /// may create appropriate non-empty sub-slices, each with a different start (to short-circuit
+    /// comparison). (Sub-slices are created only if needed, depending on `check-flow` cargo
+    /// feature. However, for consistency, we require that minimum length regardless of the cargo
+    /// feature.)
     fn from(s: String) -> Self {
-        assert!(s.len() >= 2);
+        assert!(s.len() >= 3);
         let s = s.leak();
         Self {
-            signalling: s,
-            expecting_submit_first_method: &s[1..],
-            expecting_signal_first_method: &s[2..],
+            signalling: &s[0..1],
+            expecting_submit_first_method: &s[1..2],
+            expecting_signal_first_method: &s[2..3],
         }
+    }
+}
+
+impl SignalStrs for SignalStrsSlices {
+    fn signalling(&self) -> &'static str {
+        self.signalling
+    }
+    fn expecting_submit_first_method(&self) -> &'static str {
+        self.expecting_submit_first_method
+    }
+    fn expecting_signal_first_method(&self) -> &'static str {
+        self.expecting_signal_first_method
     }
 }
 
@@ -387,7 +411,7 @@ impl From<String> for SignalStrs {
 pub fn inject_via_str<H: Hasher, const PF: ProtocolFlags>(
     hasher: &mut H,
     hash: u64,
-    signal_str: SignalStrs,
+    signal_str: SignalStrsSlices,
 ) where
     _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaStr,
 {

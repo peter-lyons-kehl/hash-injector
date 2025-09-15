@@ -96,6 +96,12 @@ unsafe = []
                                                                                                    
 # ALL logical/functional features:                                                                 
 #default = ["string", "lazy", "ptr", "unsafe"                                                     ]
+#default = ["string", "lazy", "ptr", "unsafe",               "check-flow"                         ]
+#default = ["string", "lazy", "ptr", "unsafe",                             "check-hash"           ]
+#default = ["string", "lazy", "ptr", "unsafe",                                           "asserts"]
 #default = ["string", "lazy", "ptr", "unsafe",               "check-flow", "check-hash", "asserts"]
 #default = ["string", "lazy", "ptr", "unsafe", "flags-type"                                       ]
- default = ["string", "lazy", "ptr", "unsafe", "flags-type", "check-flow", "check-hash", "asserts"]
+#default = ["string", "lazy", "ptr", "unsafe", "flags-type", "check-flow"                         ]
+#default = ["string", "lazy", "ptr", "unsafe", "flags-type",               "check-hash"           ]
+#default = ["string", "lazy", "ptr", "unsafe", "flags-type",                             "asserts"]
+#default = ["string", "lazy", "ptr", "unsafe", "flags-type", "check-flow", "check-hash", "asserts"]
