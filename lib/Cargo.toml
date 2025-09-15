@@ -67,37 +67,35 @@ lazy = []
 unsafe = []
 
 # Some combinations of features. Do leave spaces on empty lines, for up & down navigation.
-#default = [                        "asserts"]
-#default = ["string",               "asserts"]
-#default = [                        "asserts", "check-hash"]
-                                                                                                     
-#default = [                                                   "check-flow"]
-                                                                                                      
-#default = [                        "asserts",                 "check-flow"]
-#default = [                        "asserts",                                   "ptr",              "unsafe"]
-#default = [                        "asserts",                                               "lazy"]
-#default = [                        "asserts",                                   "ptr", "lazy", "unsafe"]
-#default = [                        "asserts",                 "check-flow", "ptr",              "unsafe"]
-#default = [                        "asserts",                 "check-flow",             "lazy"]
-
-#default = [                        "asserts", "check-hash", "check-flow"]
-#default = [                        "asserts", "check-hash", "check-flow", "ptr", "unsafe"]
-#default = ["string",               "asserts", "check-hash", "check-flow"]
-
-#default = [          "flags-type"]
-#default = [          "flags-type", "asserts"]
-#default = [          "flags-type", "asserts", "check-hash"]
-                                                                                                     
-#default = [          "flags-type",                            "check-flow"]
-#default = [          "flags-type",                            "check-flow"]
-#default = ["string", "flags-type",                            "check-flow"]
-#default = ["string", "flags-type",            "check-hash", "check-flow"]
-                                                                                                     
-#default = ["string", "flags-type",                            "check-flow", "ptr", "unsafe"]
-#default = ["string", "flags-type",            "check-hash", "check-flow", "ptr", "unsafe"]
-                                                                                                     
-#default = ["string", "flags-type", "asserts",                 "check-flow"]
-#default = ["string", "flags-type", "asserts", "check-hash", "check-flow"]
-                                                                                                     
-# ALL features:
-default = ["string",  "flags-type", "asserts", "check-hash", "check-flow", "ptr", "lazy", "unsafe"]
+# Logic/functionality on the left:
+# Simple/Safe on left, unsafe/unstable on right:
+#                                                           | Asserts and checks on the right
+#                                                           | Cheap on left, expensive on right:
+#                                                           |                                      
+#default = [                                                 "check-flow"                         ]
+#default = [                                                               "check-hash"           ]
+#default = [                                                                             "asserts"]
+#default = [                                                 "check-flow", "check-hash", "asserts"]
+#default = [                                   "flags-type"                                       ]
+#default = [                                   "flags-type", "check-flow", "check-hash", "asserts"]
+                                                                                                   
+#default = ["string"                                                                              ]
+#default = ["string",                                        "check-flow", "check-hash", "asserts"]
+#default = ["string",                          "flags-type"                                       ]
+#default = ["string",                          "flags-type", "check-flow", "check-hash", "asserts"]
+                                                                                                   
+#default = [          "lazy"                                                                      ]
+#default = [          "lazy",                                "check-flow", "check-hash", "asserts"]
+#default = [          "lazy",                  "flags-type"                                       ]
+#default = [          "lazy",                  "flags-type", "check-flow", "check-hash", "asserts"]
+                                                                                                   
+#default = [                  "ptr", "unsafe"                                                     ]
+#default = [                  "ptr", "unsafe",               "check-flow", "check-hash", "asserts"]
+#default = [                  "ptr", "unsafe", "flags-type"                                       ]
+#default = [                  "ptr", "unsafe", "flags-type", "check-flow", "check-hash", "asserts"]
+                                                                                                   
+# ALL logical/functional features:                                                                 
+#default = ["string", "lazy", "ptr", "unsafe"                                                     ]
+#default = ["string", "lazy", "ptr", "unsafe",               "check-flow", "check-hash", "asserts"]
+#default = ["string", "lazy", "ptr", "unsafe", "flags-type"                                       ]
+default = ["string", "lazy", "ptr", "unsafe", "flags-type", "check-flow", "check-hash", "asserts"]

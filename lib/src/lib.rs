@@ -21,6 +21,9 @@ use core::marker::ConstParamTy;
 use core::str;
 use state::SignalState;
 
+#[cfg(feature = "lazy")]
+use std::sync::LazyLock;
+#[cfg(feature = "ptr")]
 use std::sync::Mutex;
 
 mod state;
