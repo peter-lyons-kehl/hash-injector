@@ -43,31 +43,8 @@ const FICTITIOUS_LEN_EXPECTING_SIGNAL_FIRST_METHOD: usize = usize::MAX - 2;
 #[cfg(feature = "unsafe")]
 /// This has to be mutable, so that the compiler or LLVM doesn't optimize it away and de-duplicate.
 static mut SIGNAL_ARR: [u8; 2] = [b'a', b'b'];
-#[cfg(feature = "unsafe")]
-pub static SLICE: &'static str = {
-    if let Ok(slice) = str::from_utf8(
-        //#[allow(static_mut_refs)]
-        unsafe {
-            let ptr = &raw const SIGNAL_ARR as *mut [u8; 2];
-            //&[b'a', b'b']
-            &*ptr
-        },
-    ) {
-        hint::black_box(slice)
-    } else {
-        panic!();
-    }
-};
 
-static mut GLOBAL_VAR: i32 = 0;
-
-fn fff() {
-    unsafe {
-        let raw_pointer = &raw mut GLOBAL_VAR as *mut i32;
-        *raw_pointer = 1; // Unsafe dereference
-    }
-}
-#[cfg(feature = "unsafe")]
+/*#[cfg(feature = "mut-static")]
 static SIGNAL_STRS: SignalStrs = {
     if let Ok(slice) = str::from_utf8(unsafe {
         // We pass the pointer to black_box(...) as a mut pointer, so that Rust or LLVM doesn't
@@ -84,7 +61,7 @@ static SIGNAL_STRS: SignalStrs = {
     } else {
         panic!();
     }
-};
+};*/
 
 #[cfg(feature = "string")] // TODO feature: std
 static ARR_MX: Mutex<[u8; 2]> = Mutex::new([b'a', b'b']);
