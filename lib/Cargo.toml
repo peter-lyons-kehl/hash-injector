@@ -18,6 +18,12 @@ homepage = "https://github.com/peter-lyons-kehl/hash-injector"
 readme = "../README.md"
 
 [dependencies]
+# ???
+# parking_lot
+# lock_api
+# spin
+# no_mutex
+# critical-section
 
 [lints.rust]
 unexpected_cfgs = { level = "forbid"}
@@ -27,14 +33,15 @@ unexpected_cfgs = { level = "forbid"}
 # TODO Serde
 
 # Whether to implement From<String> for SignalStrs, so that the consumer can provide her/his own
-# String that is used for string slices when signalling. It requires "alloc" library.
+# String that is used for string slices when signalling. It requires "alloc" library, but it's
+# no_std.
 string = []
 
-# Expensive
-asserts = []
+# Asserts (in either debug and release mode). Expensive.
+chk = []
 
 # Whether to use a higher level type for the const generic parameter type ProtocolFlags. Requires nightly toolchain.
-flags-type = []
+flags = []
 
 # Use to check that the Hasher is (or behaves like) `SignalledInjectionHasher`. Use only if the
 # types that inject hashes (that is, types whose hash(...) calls `signal_inject_hash()`), are never
@@ -44,64 +51,71 @@ flags-type = []
 # - the underlying Hasher (its `finish(self)`), or
 # - the "original" hashed type containing (directly or indirectly) arrays or slices, especially if
 #   multiple.
-check-hash = []
+chk-hash = []
 
-# Check that signal)first(F) for const generic F is the same between `signal_inject_hash(...)` and
+# Check that signal_first(F) for const generic F is the same between `signal_inject_hash(...)` and
 # `SignalledInjectionHasher`.
 #
 # NOT very expensive.
-check-flow = []
+chk-flow = []
 
-# Using Mutex's data_ptr function to get signalling string slices. It requires "std" library and
-# nightly toolchain.
-#
-# It requires "unsafe" feature, but it does NOT imply/include it. That forces the consumer to
-# confirm that she/he wants unsafe code.
-ptr = []
+# Using Mutex. It requires "std" library, but it uses safe code. On its own it's slower than Mutex
+# with "mx-ptr" feature.
+mx = []
 
-# Using LazyLock. It requires "std" library, but it uses safe code. Slower than Mutex with "ptr"
+# Using Mutex's data_ptr function to get signalling string slices. It involves trivial unsafe code,
+# used only for creation of static signalling string slices/pointers.
+mx-ptr = ["mx"]
+
+# Using lzLock. It requires "std" library, but it uses safe code. Slower than Mutex with "mx-ptr"
 # feature.
-lazy = []
+lz = []
 
-# Whether to use unsafe. It's used only for creation of static signalling string slices.
-unsafe = []
-
-# Some combinations of features. Do leave spaces on empty lines, for up & down navigation.
-# Logic/functionality on the left:
-# Simple/Safe on left, unsafe/unstable on right:
-#                                                           | Asserts and checks on the right
-#                                                           | Cheap on left, expensive on right:
-#                                                           |                                      
-#default = [                                                 "check-flow"                         ]
-#default = [                                                               "check-hash"           ]
-#default = [                                                                             "asserts"]
-#default = [                                                 "check-flow", "check-hash", "asserts"]
-#default = [                                   "flags-type"                                       ]
-#default = [                                   "flags-type", "check-flow", "check-hash", "asserts"]
-                                                                                                   
-#default = ["string"                                                                              ]
-#default = ["string",                                        "check-flow", "check-hash", "asserts"]
-#default = ["string",                          "flags-type"                                       ]
-#default = ["string",                          "flags-type", "check-flow", "check-hash", "asserts"]
-                                                                                                   
-#default = [          "lazy"                                                                      ]
-#default = [          "lazy",                                "check-flow", "check-hash", "asserts"]
-#default = [          "lazy",                  "flags-type"                                       ]
-#default = [          "lazy",                  "flags-type", "check-flow", "check-hash", "asserts"]
-                                                                                                   
-#default = [                  "ptr", "unsafe"                                                     ]
-#default = [                  "ptr", "unsafe",               "check-flow", "check-hash", "asserts"]
-#default = [                  "ptr", "unsafe", "flags-type"                                       ]
-#default = [                  "ptr", "unsafe", "flags-type", "check-flow", "check-hash", "asserts"]
-                                                                                                   
-# ALL logical/functional features:                                                                 
-#default = ["string", "lazy", "ptr", "unsafe"                                                     ]
-#default = ["string", "lazy", "ptr", "unsafe",               "check-flow"                         ]
-#default = ["string", "lazy", "ptr", "unsafe",                             "check-hash"           ]
-#default = ["string", "lazy", "ptr", "unsafe",                                           "asserts"]
-#default = ["string", "lazy", "ptr", "unsafe",               "check-flow", "check-hash", "asserts"]
-#default = ["string", "lazy", "ptr", "unsafe", "flags-type"                                       ]
-#default = ["string", "lazy", "ptr", "unsafe", "flags-type", "check-flow"                         ]
-#default = ["string", "lazy", "ptr", "unsafe", "flags-type",               "check-hash"           ]
-#default = ["string", "lazy", "ptr", "unsafe", "flags-type",                             "asserts"]
-#default = ["string", "lazy", "ptr", "unsafe", "flags-type", "check-flow", "check-hash", "asserts"]
+# Some combinations of features. Do leave trailing spaces on empty lines, for up & down navigation.
+#                                                                                 
+#           Logic/functionality:                  ||        Checks:
+#                                                 ||
+# Simple/Safe:                  | Unsafe/         || Cheap             Expensive
+#                               | unstable:       || on left:          on right:
+#                               |                 ||                               
+#default = [                                         "chk-flow"                   ]
+#default = [                                                     "chk-hash"       ]
+#default = [                                                                 "chk"]
+#default = [                                         "chk-flow", "chk-hash", "chk"]
+#default = [                                "flags"                               ]
+#default = [                                "flags", "chk-flow", "chk-hash", "chk"]
+#                               |                 ||                               
+#default = ["string"                                                              ]
+#default = ["string",                                "chk-flow", "chk-hash", "chk"]
+#default = ["string",                       "flags"                               ]
+#default = ["string",                       "flags", "chk-flow", "chk-hash", "chk"]
+#                               |                 ||                               
+#default = [          "lz"                                                        ]
+#default = [          "lz",                          "chk-flow", "chk-hash", "chk"]
+#default = [          "lz",                 "flags"                               ]
+#default = [          "lz",                 "flags", "chk-flow", "chk-hash", "chk"]
+#                               |                 ||                               
+#default = [                "mx"                                                  ]
+#default = [                "mx", "mx-ptr"                                        ]
+#                               |                 ||                               
+#default = [                "mx", "mx-ptr",          "chk-flow", "chk-hash", "chk"]
+#default = [                "mx", "mx-ptr",          "chk-flow", "chk-hash", "chk"]
+#                               |                 ||                               
+#default = [                "mx", "mx-ptr", "flags"                               ]
+#default = [                "mx", "mx-ptr", "flags"                               ]
+#                               |                 ||                               
+#default = [                "mx", "mx-ptr", "flags", "chk-flow", "chk-hash", "chk"]
+#default = [                "mx", "mx-ptr", "flags", "chk-flow", "chk-hash", "chk"]
+#                               |                 ||                               
+# ALL logical/functional features:                                                 
+#                               |                 ||                               
+#default = ["string", "lz", "mx", "mx-ptr"                                        ]
+#default = ["string", "lz", "mx", "mx-ptr",          "chk-flow"                   ]
+#default = ["string", "lz", "mx", "mx-ptr",                      "chk-hash"       ]
+#default = ["string", "lz", "mx", "mx-ptr",                                  "chk"]
+#default = ["string", "lz", "mx", "mx-ptr",          "chk-flow", "chk-hash", "chk"]
+#default = ["string", "lz", "mx", "mx-ptr", "flags"                               ]
+#default = ["string", "lz", "mx", "mx-ptr", "flags", "chk-flow"                   ]
+#default = ["string", "lz", "mx", "mx-ptr", "flags",             "chk-hash"       ]
+#default = ["string", "lz", "mx", "mx-ptr", "flags",                         "chk"]
+ default = ["string", "lz", "mx", "mx-ptr", "flags", "chk-flow", "chk-hash", "chk"]

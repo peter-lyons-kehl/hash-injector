@@ -47,7 +47,7 @@ impl SignalState {
         }
     }
     pub const fn set_written_ordinary_hash(&mut self) {
-        #[cfg(feature = "asserts")]
+        #[cfg(feature = "chk")]
         if matches!(self.kind, SignalStateKind::HashReceived) {
             panic!();
         }
@@ -57,7 +57,7 @@ impl SignalState {
     /// Set the state that it was signalled that a hash proposal is coming.
     ///
     /// Requires `signal_first(PF)==true` - otherwise it panics in debug mode (regardless of, and
-    /// ignoring, `asserts` feature).
+    /// ignoring, `chk` feature).
     pub const fn set_signalled_proposal_coming(
         &mut self,
         #[allow(non_snake_case)] PF: ProtocolFlags,
@@ -71,7 +71,7 @@ impl SignalState {
     /// Set the state to contain the given `u64` as a possible hash.
     ///
     /// Requires `submit_first(PF)==true` - otherwise it panics in debug mode (regardless of, and
-    /// ignoring, `asserts` feature).
+    /// ignoring, `chk` feature).
     pub const fn new_hash_possibly_submitted(
         hash: u64,
         #[allow(non_snake_case)] PF: ProtocolFlags,
@@ -96,19 +96,19 @@ impl SignalState {
         }
     }
 
-    // Queries (some used by asserts only). In order of SignalStateKind's usual lifecycle.
+    // Queries (some used by chk only). In order of SignalStateKind's usual lifecycle.
     pub const fn is_nothing_written(&self) -> bool {
         //@TODO replace with matches!(..)
         matches!(self.kind, SignalStateKind::NothingWritten)
     }
-    #[cfg(feature = "asserts")]
+    #[cfg(feature = "chk")]
     pub const fn is_nothing_written_or_ordinary_hash(&self) -> bool {
         matches!(
             self.kind,
             SignalStateKind::NothingWritten | SignalStateKind::WrittenOrdinaryHash
         )
     }
-    #[cfg(feature = "asserts")]
+    #[cfg(feature = "chk")]
     /// Checks whether the state is
     /// - nothing written, or
     /// - ordinary hash data written, or
@@ -139,7 +139,7 @@ impl SignalState {
     /// Check the state whether it was signalled that a hash proposal is coming.
     ///
     /// Requires `signal_first(PF)==true` - otherwise it panics in debug mode (regardless of, and
-    /// ignoring, `asserts` feature).
+    /// ignoring, `chk` feature).
     pub const fn is_signalled_proposal_coming(
         &self,
         #[allow(non_snake_case)] PF: ProtocolFlags,

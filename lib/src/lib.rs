@@ -1,13 +1,13 @@
 #![doc = include_str!("../../README.md")]
-#![cfg_attr(not(feature = "ptr"), no_std)]
-#![cfg_attr(not(feature = "unsafe"), forbid(unsafe_code))]
+#![cfg_attr(not(feature = "mx-ptr"), no_std)]
+#![cfg_attr(not(feature = "mx-ptr"), forbid(unsafe_code))]
 // @TODO comment out:
-#![cfg_attr(feature = "unsafe", feature(const_index))] // https://github.com/rust-lang/rust/issues/143775
+//#![cfg_attr(feature = "mx-ptr", feature(const_index))] // https://github.com/rust-lang/rust/issues/143775
 // @TODO comment out:
-#![cfg_attr(feature = "unsafe", feature(const_trait_impl))] // https://github.com/rust-lang/rust/issues/143874
-#![cfg_attr(feature = "ptr", feature(mutex_data_ptr))] // https://github.com/rust-lang/rust/issues/140368
+//#![cfg_attr(feature = "mx-ptr", feature(const_trait_impl))] // https://github.com/rust-lang/rust/issues/143874
+#![cfg_attr(feature = "mx-ptr", feature(mutex_data_ptr))] // https://github.com/rust-lang/rust/issues/140368
 #![feature(hasher_prefixfree_extras)]
-#![cfg_attr(feature = "flags-type", feature(adt_const_params))]
+#![cfg_attr(feature = "flags", feature(adt_const_params))]
 
 #[cfg(feature = "string")]
 extern crate alloc;
@@ -16,14 +16,14 @@ use alloc::string::String;
 
 use core::hash::{BuildHasher, Hasher};
 use core::hint;
-#[cfg(feature = "flags-type")]
+#[cfg(feature = "flags")]
 use core::marker::ConstParamTy;
 use core::str;
 use state::SignalState;
 
-#[cfg(feature = "lazy")]
+#[cfg(feature = "lz")]
 use std::sync::LazyLock;
-#[cfg(feature = "ptr")]
+#[cfg(feature = "mx-ptr")]
 use std::sync::Mutex;
 
 mod state;
@@ -32,22 +32,22 @@ mod state;
 /// hash, or we are about to hand it - depending on whether we signal first, or submit first.
 const LEN_SIGNAL_HASH: usize = usize::MAX;
 
-#[cfg(feature = "check-flow")]
+#[cfg(feature = "chk-flow")]
 /// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation submits a hash
 /// first (before signalling).
 const LEN_SIGNAL_CHECK_METHOD_IS_SUBMIT_FIRST: usize = usize::MAX - 1;
-#[cfg(feature = "check-flow")]
+#[cfg(feature = "chk-flow")]
 /// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation signals first (before submitting a hash).
 const LEN_SIGNAL_CHECK_METHOD_IS_SIGNAL_FIRST: usize = usize::MAX - 2;
 
-#[cfg(feature = "unsafe")]
+#[cfg(feature = "mx-ptr")]
 const STR_SIGNAL_BYTE_HASH: u8 = b'A';
-#[cfg(all(feature = "unsafe", feature = "check-flow"))]
+#[cfg(all(feature = "mx-ptr", feature = "chk-flow"))]
 const LEN_SIGNAL_BYTE_CHECK_METHOD_IS_SUBMIT_FIRST: u8 = b'B';
-#[cfg(all(feature = "unsafe", feature = "check-flow"))]
+#[cfg(all(feature = "mx-ptr", feature = "chk-flow"))]
 const LEN_SIGNAL_BYTE_CHECK_METHOD_IS_SIGNAL_FIRST: u8 = b'C';
 
-#[cfg(feature = "unsafe")]
+#[cfg(feature = "mx-ptr")]
 /// This has to be mutable, so that the compiler or LLVM doesn't optimize it away and de-duplicate.
 static STR_SIGNAL_BYTES: [u8; 3] = [
     STR_SIGNAL_BYTE_HASH,
@@ -96,10 +96,10 @@ fn utf8_str() {
 pub type ProtocolFlags = ProtocolFlagsImpl;
 
 // If we ever have more than one flag, then change this into e.g. u8.
-#[cfg(not(feature = "flags-type"))]
+#[cfg(not(feature = "flags"))]
 type ProtocolFlagsImpl = usize;
 
-#[cfg(feature = "flags-type")]
+#[cfg(feature = "flags")]
 /// Type for const generic parameter `PF`.
 #[derive(ConstParamTy, Clone, Copy, PartialEq, Eq)]
 pub struct ProtocolFlagsImpl {
@@ -107,23 +107,23 @@ pub struct ProtocolFlagsImpl {
     signal_first: bool,
 }
 
-#[cfg(not(feature = "flags-type"))]
+#[cfg(not(feature = "flags"))]
 const FLAGS_BIT_VIA_STR: ProtocolFlags = 0b1;
-#[cfg(not(feature = "flags-type"))]
+#[cfg(not(feature = "flags"))]
 const FLAGS_BIT_SIGNAL_FIRST: ProtocolFlags = 0b10;
-#[cfg(not(feature = "flags-type"))]
+#[cfg(not(feature = "flags"))]
 const FLAGS_MAX: ProtocolFlags = 0b11;
 
 /// Whether this protocol signals with a fictitious length, that is, via
 /// [`Hasher::write_length_prefix`]. Otherwise it signals with a special static string slice `&str`,
 /// that is, via [`Hasher::write_str`].
 const fn is_signal_via_len(flags: ProtocolFlags) -> bool {
-    #[cfg(not(feature = "flags-type"))]
+    #[cfg(not(feature = "flags"))]
     {
         debug_assert!(flags <= FLAGS_MAX);
         flags & FLAGS_BIT_VIA_STR == 0
     }
-    #[cfg(feature = "flags-type")]
+    #[cfg(feature = "flags")]
     {
         !flags.signal_via_str
     }
@@ -132,12 +132,12 @@ const fn is_signal_via_len(flags: ProtocolFlags) -> bool {
 ///  [`Hasher::write_str`]. Otherwise it signals with a fictitious length, that is, via
 /// [`Hasher::write_length_prefix`].
 const fn is_signal_via_str(flags: ProtocolFlags) -> bool {
-    #[cfg(not(feature = "flags-type"))]
+    #[cfg(not(feature = "flags"))]
     {
         debug_assert!(flags <= FLAGS_MAX);
         flags & FLAGS_BIT_VIA_STR != 0
     }
-    #[cfg(feature = "flags-type")]
+    #[cfg(feature = "flags")]
     {
         flags.signal_via_str
     }
@@ -145,25 +145,25 @@ const fn is_signal_via_str(flags: ProtocolFlags) -> bool {
 
 /// Whether the protocol signals before it submits the hash.
 const fn is_signal_first(flags: ProtocolFlags) -> bool {
-    #[cfg(not(feature = "flags-type"))]
+    #[cfg(not(feature = "flags"))]
     {
         debug_assert!(flags <= FLAGS_MAX);
         flags & FLAGS_BIT_SIGNAL_FIRST != 0
     }
-    #[cfg(feature = "flags-type")]
+    #[cfg(feature = "flags")]
     {
         flags.signal_first
     }
 }
 /// Whether the protocol submits the hash before it signals.
 const fn is_submit_first(flags: ProtocolFlags) -> bool {
-    #[cfg(not(feature = "flags-type"))]
+    #[cfg(not(feature = "flags"))]
     {
-        #[cfg(feature = "asserts")]
+        #[cfg(feature = "chk")]
         assert!(flags <= FLAGS_MAX);
         flags & FLAGS_BIT_SIGNAL_FIRST == 0
     }
-    #[cfg(feature = "flags-type")]
+    #[cfg(feature = "flags")]
     {
         !flags.signal_first
     }
@@ -173,11 +173,11 @@ const fn is_submit_first(flags: ProtocolFlags) -> bool {
 /// - signals with a fictitious length (via [`Hasher::write_length_prefix`]), and
 /// - signals before it submits the hash.
 pub const fn new_flags_len_signal_first() -> ProtocolFlags {
-    #[cfg(not(feature = "flags-type"))]
+    #[cfg(not(feature = "flags"))]
     {
         FLAGS_BIT_SIGNAL_FIRST
     }
-    #[cfg(feature = "flags-type")]
+    #[cfg(feature = "flags")]
     ProtocolFlags {
         signal_via_str: false,
         signal_first: true,
@@ -187,11 +187,11 @@ pub const fn new_flags_len_signal_first() -> ProtocolFlags {
 /// - signals with a fictitious length (via [`Hasher::write_length_prefix`]), and
 /// - submits the hash before it signals.
 pub const fn new_flags_len_submit_first() -> ProtocolFlags {
-    #[cfg(not(feature = "flags-type"))]
+    #[cfg(not(feature = "flags"))]
     {
         0
     }
-    #[cfg(feature = "flags-type")]
+    #[cfg(feature = "flags")]
     ProtocolFlags {
         signal_via_str: false,
         signal_first: false,
@@ -201,11 +201,11 @@ pub const fn new_flags_len_submit_first() -> ProtocolFlags {
 /// - signals with a  special string slice `&str` (via [`Hasher::write_str`]), and
 /// - signals before it submits the hash.
 pub const fn new_flags_str_signal_first() -> ProtocolFlags {
-    #[cfg(not(feature = "flags-type"))]
+    #[cfg(not(feature = "flags"))]
     {
         FLAGS_BIT_VIA_STR & FLAGS_BIT_SIGNAL_FIRST
     }
-    #[cfg(feature = "flags-type")]
+    #[cfg(feature = "flags")]
     ProtocolFlags {
         signal_via_str: true,
         signal_first: true,
@@ -215,11 +215,11 @@ pub const fn new_flags_str_signal_first() -> ProtocolFlags {
 /// - signals with a  special string slice `&str` (via [`Hasher::write_str`]), and
 /// - submits the hash before it signals.
 pub const fn new_flags_str_submit_first() -> ProtocolFlags {
-    #[cfg(not(feature = "flags-type"))]
+    #[cfg(not(feature = "flags"))]
     {
         FLAGS_BIT_VIA_STR
     }
-    #[cfg(feature = "flags-type")]
+    #[cfg(feature = "flags")]
     ProtocolFlags {
         signal_via_str: true,
         signal_first: false,
@@ -235,13 +235,13 @@ trait _ProtocolFlagsSignalledViaStr {}
 impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new_flags_str_signal_first() }> {}
 impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new_flags_str_submit_first() }> {}
 
-#[cfg(not(feature = "flags-type"))]
+#[cfg(not(feature = "flags"))]
 pub fn ff<const PF: ProtocolFlags>()
 where
     _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,
 {
 }
-#[cfg(feature = "flags-type")]
+#[cfg(feature = "flags")]
 //fn ff<const PF: ProtocolFlags>() where [(); is_signal_via_len(PF)]: ProtocolFlagsSignalledViaLen {
 pub fn ff<const PF: ProtocolFlags>()
 where
@@ -266,7 +266,7 @@ where
 ///   the same [BuildHasher].)
 ///
 /// Extra validation of signalling in the user's [core::hash::Hash] implementation is done ONLY in
-/// when built with `asserts` feature.
+/// when built with `chk` feature.
 pub fn inject_via_len<H: Hasher, const PF: ProtocolFlags>(hasher: &mut H, hash: u64)
 where
     _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,
@@ -283,11 +283,11 @@ where
         hasher.write_length_prefix(LEN_SIGNAL_HASH);
     }
     // Check that finish() does return the signalled hash. We do this BEFORE
-    // check-flow-based checks (if any).
-    #[cfg(feature = "check-hash")]
+    // chk-flow-based checks (if any).
+    #[cfg(feature = "chk-hash")]
     assert_eq!(hasher.finish(), hash);
 
-    #[cfg(feature = "check-flow")]
+    #[cfg(feature = "chk-flow")]
     hasher.write_length_prefix(if is_signal_first(PF) {
         LEN_SIGNAL_CHECK_METHOD_IS_SIGNAL_FIRST
     } else {
@@ -362,10 +362,10 @@ fn u_str() -> &'static str {
 pub trait SignalStrs {
     /// Respective to [FICTITIOUS_LEN_SIGNALLING].
     fn signalling(&self) -> &'static str;
-    #[cfg(feature = "check-flow")]
+    #[cfg(feature = "chk-flow")]
     /// Respective to [FICTITIOUS_LEN_EXPECTING_SUBMIT_FIRST_METHOD].
     fn expecting_submit_first_method(&self) -> &'static str;
-    #[cfg(feature = "check-flow")]
+    #[cfg(feature = "chk-flow")]
     /// Respective to [FICTITIOUS_LEN_EXPECTING_SIGNAL_FIRST_METHOD].
     fn expecting_signal_first_method(&self) -> &'static str;
     #[allow(private_interfaces)]
@@ -379,7 +379,7 @@ pub trait ValidationPtrs {
 /// Indicates static `str` slices to pass to [Hasher::write_length_prefix] for
 /// - signalling (that a hash is about to be submitted, or that a hash has been just submitted), and
 /// - signalling to the [Hasher] so it check that both the hashable type and [Hasher] use same
-///   protocol flow (submit first, or signal first) - if enabled with cargo feature `check-flow`.
+///   protocol flow (submit first, or signal first) - if enabled with cargo feature `chk-flow`.
 ///
 /// Its fields are intentionally not public, so that the struct can't be constructed publicly.
 /// Otherwise users could accidentally pass static string slices that share addresses with other
@@ -387,10 +387,10 @@ pub trait ValidationPtrs {
 pub struct SignalStrsSlices {
     /// Respective to [FICTITIOUS_LEN_SIGNALLING].
     signalling: &'static str,
-    #[cfg(feature = "check-flow")]
+    #[cfg(feature = "chk-flow")]
     /// Respective to [FICTITIOUS_LEN_EXPECTING_SUBMIT_FIRST_METHOD].
     expecting_submit_first_method: &'static str,
-    #[cfg(feature = "check-flow")]
+    #[cfg(feature = "chk-flow")]
     /// Respective to [FICTITIOUS_LEN_EXPECTING_SIGNAL_FIRST_METHOD].
     expecting_signal_first_method: &'static str,
 }
@@ -399,7 +399,7 @@ pub struct SignalStrsSlices {
 impl From<String> for SignalStrsSlices {
     /// Parameter `s` needs to have length at least 3 characters. This
     /// may create appropriate non-empty sub-slices, each with a different start (to short-circuit
-    /// comparison). (Sub-slices are created only if needed, depending on `check-flow` cargo
+    /// comparison). (Sub-slices are created only if needed, depending on `chk-flow` cargo
     /// feature. However, for consistency, we require that minimum length regardless of the cargo
     /// feature.)
     fn from(s: String) -> Self {
@@ -435,7 +435,7 @@ static A: &'static u8 = ABC.as_bytes().first().unwrap();
 static XY: [u8; 2] = [b'X', b'Y'];
 static X: &'static u8 = XY.first().unwrap();
 
-/// We pass `signal_str` by value (rather than by reference), because if `check-flow` cargo
+/// We pass `signal_str` by value (rather than by reference), because if `chk-flow` cargo
 /// feature is disabled then [SignalStrs] is small.
 pub fn inject_via_str<H: Hasher, S: SignalStrs, const PF: ProtocolFlags>(
     hasher: &mut H,
@@ -469,13 +469,13 @@ impl<H: Hasher, const PF: ProtocolFlags> SignalledInjectionHasher<H, PF> {
     // @TODO if this doesn't optimize away in release, replace with a macro.
     #[inline(always)]
     fn assert_nothing_written(&self) {
-        #[cfg(feature = "asserts")]
+        #[cfg(feature = "chk")]
         assert!(self.state.is_nothing_written());
     }
     // @TODO if this doesn't optimize away in release, replace with a macro.
     #[inline(always)]
     fn assert_nothing_written_or_ordinary_hash(&self) {
-        #[cfg(feature = "asserts")]
+        #[cfg(feature = "chk")]
         assert!(
             self.state.is_nothing_written_or_ordinary_hash(),
             "Expecting the state to be NothingWritten or WrittenOrdinaryHash, but the state was: {:?}",
@@ -488,7 +488,7 @@ impl<H: Hasher, const PF: ProtocolFlags> SignalledInjectionHasher<H, PF> {
     /// - no hash has been received (regardless of whether we signal first, or submit first).
     #[inline(always)]
     fn assert_nothing_written_or_ordinary_hash_or_possibly_submitted(&self) {
-        #[cfg(feature = "asserts")]
+        #[cfg(feature = "chk")]
         {
             assert!(
                 self.state
@@ -621,7 +621,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                 self.assert_nothing_written();
                 self.state.set_signalled_proposal_coming(PF);
             } else {
-                #[cfg(feature = "check-flow")]
+                #[cfg(feature = "chk-flow")]
                 {
                     if len == LEN_SIGNAL_CHECK_METHOD_IS_SIGNAL_FIRST {
                         return; // just being checked (no data to write)
@@ -638,7 +638,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                 if self.state.is_hash_possibly_submitted(PF) {
                     self.state.set_hash_received();
                 } else {
-                    #[cfg(feature = "asserts")]
+                    #[cfg(feature = "chk")]
                     assert!(
                         false,
                         "Expected state HashPossiblySubmitted, but it was {:?}.",
@@ -649,7 +649,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                     self.written_ordinary_hash();
                 }
             } else {
-                #[cfg(feature = "check-flow")]
+                #[cfg(feature = "chk-flow")]
                 {
                     if len == LEN_SIGNAL_CHECK_METHOD_IS_SUBMIT_FIRST {
                         return; // just being checked (no data to write)
