@@ -80,6 +80,7 @@ static ARR_MX: Mutex<ARR> = hint::black_box(Mutex::new([b'A', b'B', b'C']));
 static SIGNAL_STRS_MX: () = {
     //ARR_MX.data_ptr();
 };
+static STRI: String = String::new();
 fn utf8_str() {
     let bytes = unsafe { &*ARR_MX.data_ptr() as &ARR };
     let bytes_slice = &bytes[..];
