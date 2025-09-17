@@ -23,51 +23,23 @@ pub const LEN_SIGNAL_CHECK_METHOD_IS_SUBMIT_FIRST: usize = usize::MAX - 1;
 pub const LEN_SIGNAL_CHECK_METHOD_IS_SIGNAL_FIRST: usize = usize::MAX - 2;
 
 #[cfg(feature = "mx")]
-const STR_SIGNAL_BYTE_HASH: u8 = b'A';
-#[cfg(all(feature = "mx", feature = "chk-flow"))]
-const LEN_SIGNAL_BYTE_CHECK_METHOD_IS_SUBMIT_FIRST: u8 = b'B';
-#[cfg(all(feature = "mx", feature = "chk-flow"))]
-const LEN_SIGNAL_BYTE_CHECK_METHOD_IS_SIGNAL_FIRST: u8 = b'C';
-
+type U8_ARR = [u8; 3];
 #[cfg(feature = "mx")]
-/// This has to be mutable, so that the compiler or LLVM doesn't optimize it away and de-duplicate.
-static STR_SIGNAL_BYTES: [u8; 3] = [
-    STR_SIGNAL_BYTE_HASH,
-    LEN_SIGNAL_BYTE_CHECK_METHOD_IS_SUBMIT_FIRST,
-    LEN_SIGNAL_BYTE_CHECK_METHOD_IS_SIGNAL_FIRST,
-];
-
-/*#[cfg(feature = "mut-static")]
-static SIGNAL_STRS: SignalStrs = {
-    if let Ok(slice) = str::from_utf8(unsafe {
-        // We pass the pointer to black_box(...) as a mut pointer, so that Rust or LLVM doesn't
-        // optimize it away and doesn't de-duplicate.
-        let ptr = hint::black_box(&raw mut SIGNAL_ARR) as *const [u8; 2];
-        &*ptr
-    }) {
-        assert!(slice.len() >= 2);
-        SignalStrs {
-            signalling: slice,
-            expecting_submit_first_method: &slice[1..],
-            expecting_signal_first_method: &slice[2..],
-        }
-    } else {
-        panic!();
-    }
-};*/
-
-#[cfg(feature = "mx")] // TODO feature: std
-type ARR = [u8; 3];
-static ARR_MX: Mutex<ARR> = hint::black_box(Mutex::new([b'A', b'B', b'C']));
-static SIGNAL_STRS_MX: () = {
-    //ARR_MX.data_ptr();
-};
-static STRI: String = String::new();
-fn utf8_str() {
-    let bytes = unsafe { &*ARR_MX.data_ptr() as &ARR };
+static MX: Mutex<U8_ARR> = hint::black_box(Mutex::new([b'A', b'B', b'C']));
+fn str_full() -> &'static str {
+    let bytes = unsafe { &*MX.data_ptr() as &U8_ARR };
     let bytes_slice = &bytes[..];
     // @TODO earlier: str::from_utf8(bytes_slice) // CHECKED
-    let utf8 = unsafe { str::from_utf8_unchecked(bytes_slice) };
+    unsafe { str::from_utf8_unchecked(bytes_slice) }
+}
+fn str_signal_hash() -> &'static str {
+    unsafe { str_full().get_unchecked(0..1) }
+}
+fn str_signal_check_method_is_submit_first() -> &'static str {
+    unsafe { str_full().get_unchecked(1..2) }
+}
+fn str_signal_check_method_is_signal_first() -> &'static str {
+    unsafe { str_full().get_unchecked(2..3) }
 }
 
 /// For use with [crate::hasher::SignalledInjectionHasher] `created by

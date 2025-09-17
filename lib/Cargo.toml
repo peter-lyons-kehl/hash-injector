@@ -35,7 +35,8 @@ unexpected_cfgs = { level = "forbid"}
 # Asserts (in either debug and release mode). Expensive.
 chk = []
 
-# Whether to use a higher level type for the const generic parameter type ProtocolFlags. Requires nightly toolchain.
+# Whether to use a higher level type for the const generic parameter type ProtocolFlags. Requires
+# nightly toolchain. This feature CAN be used with incompatible Hashers, too.
 flags = []
 
 # Use to check that the Hasher is (or behaves like) `SignalledInjectionHasher`. Use only if the
@@ -48,8 +49,9 @@ flags = []
 #   multiple.
 chk-hash = []
 
-# Check that signal_first(F) for const generic F is the same between `signal_inject_hash(...)` and
-# `SignalledInjectionHasher`.
+# Check that signal_first(F) for const generic parameter F is the same between
+# `signal_inject_hash(...)` and `SignalledInjectionHasher`. This feature CAN be used with
+# incompatible Hashers, too.
 #
 # NOT very expensive.
 chk-flow = []
