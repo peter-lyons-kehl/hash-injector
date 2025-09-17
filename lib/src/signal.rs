@@ -5,10 +5,8 @@ use core::str;
 use std::sync::Mutex;
 
 use crate::flags;
-use crate::flags::signal_via;
 pub use flags::{
-    _ProtocolFlagsSignalledViaLen, _ProtocolFlagsSignalledViaStr, _ProtocolFlagsSubset, Flow,
-    ProtocolFlags, SignalVia,
+    _ProtocolFlagsSignalledViaLen, _ProtocolFlagsSubset, Flow, ProtocolFlags, SignalVia,
 };
 
 /// A fictitious slice length, which represents a signal that we either just handed an injected
@@ -24,13 +22,13 @@ pub const LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST: usize = usize::MAX - 1;
 pub const LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST: usize = usize::MAX - 2;
 
 #[cfg(feature = "mx")]
-type U8_ARR = [u8; 3];
+type U8Array = [u8; 3];
 #[cfg(feature = "mx")]
-pub static MX: Mutex<U8_ARR> = hint::black_box(Mutex::new([b'A', b'B', b'C']));
+pub static MX: Mutex<U8Array> = hint::black_box(Mutex::new([b'A', b'B', b'C']));
 
 #[cfg(feature = "mx")]
 fn str_full() -> &'static str {
-    let bytes = unsafe { &*MX.data_ptr() as &U8_ARR };
+    let bytes = unsafe { &*MX.data_ptr() as &U8Array };
     let bytes_slice = &bytes[..];
     // @TODO earlier: str::from_utf8(bytes_slice) // CHECKED
     unsafe { str::from_utf8_unchecked(bytes_slice) }
@@ -62,7 +60,7 @@ pub fn ptr_signal_check_flow_is_signal_first() -> *const u8 {
 }
 
 #[inline(always)]
-fn signal<H: Hasher>(PF: ProtocolFlags, hasher: &mut H) {
+fn signal<H: Hasher>(#[allow(non_snake_case)] PF: ProtocolFlags, hasher: &mut H) {
     match flags::signal_via(PF) {
         SignalVia::Len => hasher.write_length_prefix(LEN_SIGNAL_HASH),
         SignalVia::Str => hasher.write_str(str_signal_hash()),

@@ -187,17 +187,3 @@ impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new::flags_len_sub
 pub trait _ProtocolFlagsSignalledViaStr {}
 impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::flags_str_signal_first() }> {}
 impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::flags_str_submit_first() }> {}
-
-#[cfg(not(feature = "flags"))]
-pub fn ff<const PF: ProtocolFlags>()
-where
-    _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,
-{
-}
-#[cfg(feature = "flags")]
-//fn ff<const PF: ProtocolFlags>() where [(); is_signal_via_len(PF)]: ProtocolFlagsSignalledViaLen {
-pub fn ff<const PF: ProtocolFlags>()
-where
-    _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,
-{
-}
