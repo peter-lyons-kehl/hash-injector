@@ -16,8 +16,6 @@ use alloc::string::String;
 
 use core::hash::{BuildHasher, Hasher};
 use core::hint;
-#[cfg(feature = "flags")]
-use core::marker::ConstParamTy;
 use core::str;
 #[cfg(feature = "lz")]
 use std::sync::LazyLock;
