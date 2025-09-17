@@ -39,11 +39,11 @@ fn str_full() -> &'static str {
 pub fn str_signal_hash() -> &'static str {
     unsafe { str_full().get_unchecked(0..1) }
 }
-#[cfg(feature = "mx")]
+#[cfg(all(feature = "mx", feature = "chk-flow"))]
 pub fn str_signal_check_flow_is_submit_first() -> &'static str {
     unsafe { str_full().get_unchecked(1..2) }
 }
-#[cfg(feature = "mx")]
+#[cfg(all(feature = "mx", feature = "chk-flow"))]
 pub fn str_signal_check_flow_is_signal_first() -> &'static str {
     unsafe { str_full().get_unchecked(2..3) }
 }
@@ -52,11 +52,11 @@ pub fn str_signal_check_flow_is_signal_first() -> &'static str {
 pub fn ptr_signal_hash() -> *const u8 {
     MX.data_ptr() as *const u8
 }
-#[cfg(feature = "mx")]
+#[cfg(all(feature = "mx", feature = "chk-flow"))]
 pub fn ptr_signal_check_flow_is_submit_first() -> *const u8 {
     unsafe { ptr_signal_hash().add(1) }
 }
-#[cfg(feature = "mx")]
+#[cfg(all(feature = "mx", feature = "chk-flow"))]
 pub fn ptr_signal_check_flow_is_signal_first() -> *const u8 {
     unsafe { ptr_signal_hash().add(2) }
 }
@@ -116,13 +116,21 @@ where
         Flow::SubmitFirst => {
             match flags::signal_via(PF) {
                 SignalVia::Len => hasher.write_length_prefix(LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST),
-                SignalVia::Str => hasher.write_str(str_signal_check_flow_is_submit_first()),
+                SignalVia::Str =>
+                {
+                    #[cfg(feature = "mx")]
+                    hasher.write_str(str_signal_check_flow_is_submit_first())
+                }
             };
         }
         Flow::SignalFirst => {
             match flags::signal_via(PF) {
                 SignalVia::Len => hasher.write_length_prefix(LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST),
-                SignalVia::Str => hasher.write_str(str_signal_check_flow_is_signal_first()),
+                SignalVia::Str =>
+                {
+                    #[cfg(feature = "mx")]
+                    hasher.write_str(str_signal_check_flow_is_signal_first())
+                }
             };
         }
     }

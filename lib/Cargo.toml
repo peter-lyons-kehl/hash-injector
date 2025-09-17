@@ -65,7 +65,7 @@ mx = []
 #           Logic/          |         Checks:
 #           functionality:  |
 #                           | Cheap:      Expensive:
-default = [                                               ]
+#default = [                                               ]
 #default = [                  "chk-flow"                   ]
 #default = [                              "chk-hash"       ]
 #default = [                                          "chk"]
