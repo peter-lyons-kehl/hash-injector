@@ -26,21 +26,39 @@ pub const LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST: usize = usize::MAX - 2;
 #[cfg(feature = "mx")]
 type U8_ARR = [u8; 3];
 #[cfg(feature = "mx")]
-static MX: Mutex<U8_ARR> = hint::black_box(Mutex::new([b'A', b'B', b'C']));
+pub static MX: Mutex<U8_ARR> = hint::black_box(Mutex::new([b'A', b'B', b'C']));
+
+#[cfg(feature = "mx")]
 fn str_full() -> &'static str {
     let bytes = unsafe { &*MX.data_ptr() as &U8_ARR };
     let bytes_slice = &bytes[..];
     // @TODO earlier: str::from_utf8(bytes_slice) // CHECKED
     unsafe { str::from_utf8_unchecked(bytes_slice) }
 }
+#[cfg(feature = "mx")]
 pub fn str_signal_hash() -> &'static str {
     unsafe { str_full().get_unchecked(0..1) }
 }
+#[cfg(feature = "mx")]
 pub fn str_signal_check_flow_is_submit_first() -> &'static str {
     unsafe { str_full().get_unchecked(1..2) }
 }
+#[cfg(feature = "mx")]
 pub fn str_signal_check_flow_is_signal_first() -> &'static str {
     unsafe { str_full().get_unchecked(2..3) }
+}
+
+#[cfg(feature = "mx")]
+pub fn ptr_signal_hash() -> *const u8 {
+    MX.data_ptr() as *const u8
+}
+#[cfg(feature = "mx")]
+pub fn ptr_signal_check_flow_is_submit_first() -> *const u8 {
+    unsafe { ptr_signal_hash().add(1) }
+}
+#[cfg(feature = "mx")]
+pub fn ptr_signal_check_flow_is_signal_first() -> *const u8 {
+    unsafe { ptr_signal_hash().add(2) }
 }
 
 #[inline(always)]

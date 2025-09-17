@@ -43,10 +43,8 @@ flags = []
 # types that inject hashes (that is, types whose hash(...) calls `signal_inject_hash()`), are never
 # to be used with any incompatible Hasher.
 #
-# Expensive depending on
-# - the underlying Hasher (its `finish(self)`), or
-# - the "original" hashed type containing (directly or indirectly) arrays or slices, especially if
-#   multiple.
+# (Potentially) expensive ONLY if types whose hash(...) calls hash_injector::inject(...) are used
+# with other hashers.
 chk-hash = []
 
 # Check that signal_first(F) for const generic parameter F is the same between

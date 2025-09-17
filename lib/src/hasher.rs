@@ -2,9 +2,12 @@ use core::hash::{BuildHasher, Hasher};
 
 use crate::flags::{self, Flow, ProtocolFlags, SignalVia};
 use crate::signal::{
-    LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST, LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST, LEN_SIGNAL_HASH,
+    self, LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST, LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST,
+    LEN_SIGNAL_HASH,
 };
 use crate::state::SignalState;
+#[cfg(feature = "mx")]
+use core::ptr;
 
 pub struct SignalledInjectionHasher<H: Hasher, const PF: ProtocolFlags> {
     hasher: H,
@@ -235,12 +238,77 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
 
     #[inline]
     fn write_str(&mut self, s: &str) {
-        if true {
-            todo!()
+        match flags::signal_via(PF) {
+            SignalVia::Len => {
+                self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+                self.hasher.write_str(s);
+                self.written_ordinary_hash();
+            }
+            SignalVia::Str => {
+                #[cfg(feature = "mx")]
+                match flags::flow(PF) {
+                    Flow::SubmitFirst => {
+                        if ptr::eq(s.as_ptr(), signal::ptr_signal_hash()) {
+                            if self.state.is_hash_possibly_submitted(PF) {
+                                self.state.set_hash_received();
+                            } else {
+                                #[cfg(feature = "chk")]
+                                assert!(
+                                    false,
+                                    "Expected state HashPossiblySubmitted, but it was {:?}.",
+                                    self.state
+                                );
+
+                                self.hasher.write_str(s);
+                                self.written_ordinary_hash();
+                            }
+                        } else {
+                            #[cfg(feature = "chk-flow")]
+                            {
+                                if ptr::eq(
+                                    s.as_ptr(),
+                                    signal::ptr_signal_check_flow_is_submit_first(),
+                                ) {
+                                    return; // just being checked (no data to write)
+                                }
+                                assert!(!ptr::eq(
+                                    s.as_ptr(),
+                                    signal::ptr_signal_check_flow_is_signal_first()
+                                ));
+                            }
+
+                            self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+                            self.hasher.write_str(s);
+                            self.written_ordinary_hash();
+                        }
+                    }
+                    Flow::SignalFirst => {
+                        if ptr::eq(s.as_ptr(), signal::ptr_signal_hash()) {
+                            self.assert_nothing_written();
+                            self.state.set_signalled_proposal_coming(PF);
+                        } else {
+                            #[cfg(feature = "chk-flow")]
+                            {
+                                if ptr::eq(
+                                    s.as_ptr(),
+                                    signal::ptr_signal_check_flow_is_signal_first(),
+                                ) {
+                                    return; // just being checked (no data to write)
+                                }
+                                assert!(!ptr::eq(
+                                    s.as_ptr(),
+                                    signal::ptr_signal_check_flow_is_submit_first()
+                                ));
+                            }
+
+                            self.assert_nothing_written_or_ordinary_hash();
+                            self.hasher.write_str(s);
+                            self.written_ordinary_hash();
+                        }
+                    }
+                }
+            }
         }
-        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
-        self.hasher.write_str(s);
-        self.written_ordinary_hash();
     }
 }
 
