@@ -1,6 +1,3 @@
-#[cfg(feature = "string")]
-use alloc::string::String;
-
 use core::hash::Hasher;
 use core::hint;
 use core::str;
@@ -25,14 +22,14 @@ pub const LEN_SIGNAL_CHECK_METHOD_IS_SUBMIT_FIRST: usize = usize::MAX - 1;
 /// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation signals first (before submitting a hash).
 pub const LEN_SIGNAL_CHECK_METHOD_IS_SIGNAL_FIRST: usize = usize::MAX - 2;
 
-#[cfg(feature = "mx-ptr")]
+#[cfg(feature = "mx")]
 const STR_SIGNAL_BYTE_HASH: u8 = b'A';
-#[cfg(all(feature = "mx-ptr", feature = "chk-flow"))]
+#[cfg(all(feature = "mx", feature = "chk-flow"))]
 const LEN_SIGNAL_BYTE_CHECK_METHOD_IS_SUBMIT_FIRST: u8 = b'B';
-#[cfg(all(feature = "mx-ptr", feature = "chk-flow"))]
+#[cfg(all(feature = "mx", feature = "chk-flow"))]
 const LEN_SIGNAL_BYTE_CHECK_METHOD_IS_SIGNAL_FIRST: u8 = b'C';
 
-#[cfg(feature = "mx-ptr")]
+#[cfg(feature = "mx")]
 /// This has to be mutable, so that the compiler or LLVM doesn't optimize it away and de-duplicate.
 static STR_SIGNAL_BYTES: [u8; 3] = [
     STR_SIGNAL_BYTE_HASH,
@@ -59,7 +56,7 @@ static SIGNAL_STRS: SignalStrs = {
     }
 };*/
 
-#[cfg(feature = "string")] // TODO feature: std
+#[cfg(feature = "mx")] // TODO feature: std
 type ARR = [u8; 3];
 static ARR_MX: Mutex<ARR> = hint::black_box(Mutex::new([b'A', b'B', b'C']));
 static SIGNAL_STRS_MX: () = {
@@ -165,7 +162,6 @@ const fn c_sstr<S: SignalStrTr + ?Sized>(s: &'static S) {}
 const CS: () = c_sstr("a");
 const CW: () = c_sstr(&WrapStr("a"));
 
-#[cfg(feature = "string")]
 impl From<String> for WrapStr {
     /// Parameter `s` needs to have length at least 2
     fn from(s: String) -> Self {
@@ -220,7 +216,6 @@ pub struct SignalStrsSlices {
     expecting_signal_first_method: &'static str,
 }
 
-#[cfg(feature = "string")]
 impl From<String> for SignalStrsSlices {
     /// Parameter `s` needs to have length at least 3 characters. This
     /// may create appropriate non-empty sub-slices, each with a different start (to short-circuit

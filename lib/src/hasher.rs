@@ -1,6 +1,4 @@
 use core::hash::{BuildHasher, Hasher};
-#[cfg(feature = "lz")]
-use std::sync::LazyLock;
 
 use crate::flags;
 pub use crate::flags::ProtocolFlags;

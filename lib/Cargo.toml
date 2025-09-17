@@ -32,11 +32,6 @@ unexpected_cfgs = { level = "forbid"}
 
 # TODO Serde
 
-# Whether to implement From<String> for SignalStrs, so that the consumer can provide her/his own
-# String that is used for string slices when signalling. It requires "alloc" library, but it's
-# no_std.
-string = []
-
 # Asserts (in either debug and release mode). Expensive.
 chk = []
 
@@ -59,61 +54,35 @@ chk-hash = []
 # NOT very expensive.
 chk-flow = []
 
-# Using Mutex. It requires "std" library, but it uses safe code. On its own it's slower than Mutex
-# with "mx-ptr" feature.
+# Using Mutex and its data_ptr function to get signalling string slices. It requires "std" library.
+# It involves trivial unsafe code, used only for creation of static signalling string
+# slices/pointers.
 mx = []
 
-# Using Mutex's data_ptr function to get signalling string slices. It involves trivial unsafe code,
-# used only for creation of static signalling string slices/pointers.
-mx-ptr = ["mx"]
-
-# Using lzLock. It requires "std" library, but it uses safe code. Slower than Mutex with "mx-ptr"
-# feature.
-lz = []
 
 # Some combinations of features. Do leave trailing spaces on empty lines, for up & down navigation.
-#                                                                                 
-#           Logic/functionality:                  ||        Checks:
-#                                                 ||
-# Simple/Safe:                  | Unsafe/         || Cheap             Expensive
-#                               | unstable:       || on left:          on right:
-#                               |                 ||                               
-#default = [                                         "chk-flow"                   ]
-#default = [                                                     "chk-hash"       ]
-#default = [                                                                 "chk"]
-#default = [                                         "chk-flow", "chk-hash", "chk"]
-#default = [                                "flags"                               ]
-#default = [                                "flags", "chk-flow", "chk-hash", "chk"]
-#                               |                 ||                               
-#default = ["string"                                                              ]
-#default = ["string",                                "chk-flow", "chk-hash", "chk"]
-#default = ["string",                       "flags"                               ]
-#default = ["string",                       "flags", "chk-flow", "chk-hash", "chk"]
-#                               |                 ||                               
-#default = [          "lz"                                                        ]
-#default = [          "lz",                          "chk-flow", "chk-hash", "chk"]
-#default = [          "lz",                 "flags"                               ]
-#default = [          "lz",                 "flags", "chk-flow", "chk-hash", "chk"]
-#                               |                 ||                               
-#default = [                "mx"                                                  ]
-#default = [                "mx"                     "chk-flow", "chk-hash", "chk"]
-#default = [                "mx",           "flags"                               ]
-#default = [                "mx"            "flags", "chk-flow", "chk-hash", "chk"]
-#                               |                 ||                               
-#default = [                "mx", "mx-ptr"                                        ]
-#default = [                "mx", "mx-ptr",          "chk-flow", "chk-hash", "chk"]
-#default = [                "mx", "mx-ptr"  "flags"                               ]
-#default = [                "mx", "mx-ptr", "flags", "chk-flow", "chk-hash", "chk"]
-#                               |                 ||                               
-# ALL logical/functional features:                                                 
-#                               |                 ||                               
-#default = ["string", "lz", "mx", "mx-ptr"                                        ]
-#default = ["string", "lz", "mx", "mx-ptr",          "chk-flow"                   ]
-#default = ["string", "lz", "mx", "mx-ptr",                      "chk-hash"       ]
-#default = ["string", "lz", "mx", "mx-ptr",                                  "chk"]
-#default = ["string", "lz", "mx", "mx-ptr",          "chk-flow", "chk-hash", "chk"]
-#default = ["string", "lz", "mx", "mx-ptr", "flags"                               ]
-#default = ["string", "lz", "mx", "mx-ptr", "flags", "chk-flow"                   ]
-#default = ["string", "lz", "mx", "mx-ptr", "flags",             "chk-hash"       ]
-#default = ["string", "lz", "mx", "mx-ptr", "flags",                         "chk"]
- default = ["string", "lz", "mx", "mx-ptr", "flags", "chk-flow", "chk-hash", "chk"]
+#                                                           
+#           Logic/          |         Checks:
+#           functionality:  |
+#                           | Cheap:      Expensive:
+#default = [                                               ]
+#default = [                  "chk-flow"                   ]
+#default = [                              "chk-hash"       ]
+#default = [                                          "chk"]
+#default = [                  "chk-flow", "chk-hash", "chk"]
+#default = [         "flags"                               ]
+#default = [         "flags", "chk-flow"                   ]
+#default = [         "flags",             "chk-hash"       ]
+#default = [         "flags",                         "chk"]
+#default = [         "flags", "chk-flow", "chk-hash", "chk"]
+#                                                           
+#default = [  "mx"                                         ]
+#default = [  "mx",           "chk-flow"                   ]
+#default = [  "mx",                       "chk-hash"       ]
+#default = [  "mx",                                   "chk"]
+#default = [  "mx",           "chk-flow", "chk-hash", "chk"]
+#default = [  "mx",  "flags"                               ]
+#default = [  "mx",  "flags", "chk-flow"                   ]
+#default = [  "mx",  "flags",             "chk-hash"       ]
+#default = [  "mx",  "flags",                         "chk"]
+ default = [  "mx",  "flags", "chk-flow", "chk-hash", "chk"]
