@@ -1,10 +1,8 @@
 use core::hash::{BuildHasher, Hasher};
 
-use crate::flags;
-pub use crate::flags::ProtocolFlags;
+use crate::flags::{self, Flow, ProtocolFlags};
 use crate::signal::{
-    LEN_SIGNAL_CHECK_METHOD_IS_SIGNAL_FIRST, LEN_SIGNAL_CHECK_METHOD_IS_SUBMIT_FIRST,
-    LEN_SIGNAL_HASH,
+    LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST, LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST, LEN_SIGNAL_HASH,
 };
 use crate::state::SignalState;
 
@@ -97,7 +95,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
     }
     fn write_u64(&mut self, i: u64) {
         // the outer if check can get optimized away (const)
-        if flags::is_signal_via_len(PF) {
+        if flags::is_signal_via_str(PF) {
             // @TODO
         }
         if flags::is_signal_first(PF) {
@@ -182,10 +180,10 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
             } else {
                 #[cfg(feature = "chk-flow")]
                 {
-                    if len == LEN_SIGNAL_CHECK_METHOD_IS_SIGNAL_FIRST {
+                    if len == LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST {
                         return; // just being checked (no data to write)
                     }
-                    assert_ne!(len, LEN_SIGNAL_CHECK_METHOD_IS_SUBMIT_FIRST);
+                    assert_ne!(len, LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST);
                 }
 
                 self.assert_nothing_written_or_ordinary_hash();
@@ -210,10 +208,10 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
             } else {
                 #[cfg(feature = "chk-flow")]
                 {
-                    if len == LEN_SIGNAL_CHECK_METHOD_IS_SUBMIT_FIRST {
+                    if len == LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST {
                         return; // just being checked (no data to write)
                     }
-                    assert_ne!(len, LEN_SIGNAL_CHECK_METHOD_IS_SIGNAL_FIRST);
+                    assert_ne!(len, LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST);
                 }
 
                 self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
@@ -225,6 +223,9 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
 
     #[inline]
     fn write_str(&mut self, s: &str) {
+        if true {
+            todo!()
+        }
         self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
         self.hasher.write_str(s);
         self.written_ordinary_hash();

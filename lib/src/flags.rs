@@ -82,6 +82,42 @@ pub const fn is_submit_first(flags: ProtocolFlags) -> bool {
     }
 }
 
+/// A helper enum that allows us to use `match ... {...}`` statements, rather than
+///
+/// `if is_signal_via...(PF) {...} else {...}`.
+///
+/// Rust checks match statements to be exhaustive, so one less chance of a mistake.
+#[derive(ConstParamTy, Clone, Copy, PartialEq, Eq)]
+pub enum SignalVia {
+    Len,
+    Str,
+}
+pub const fn signal_via(flags: ProtocolFlags) -> SignalVia {
+    if is_signal_via_len(flags) {
+        SignalVia::Len
+    } else {
+        SignalVia::Str
+    }
+}
+
+/// A helper enum that allows us to use `match ... {...}`` statements, rather than
+///
+/// `if is_submit_first(PF) {...} else {...}`.
+///
+/// Rust checks match statements to be exhaustive, so one less chance of a mistake.
+#[derive(ConstParamTy, Clone, Copy, PartialEq, Eq)]
+pub enum Flow {
+    SubmitFirst,
+    SignalFirst,
+}
+pub const fn flow(flags: ProtocolFlags) -> Flow {
+    if is_submit_first(flags) {
+        Flow::SubmitFirst
+    } else {
+        Flow::SignalFirst
+    }
+}
+
 pub mod new {
     use super::ProtocolFlags;
 

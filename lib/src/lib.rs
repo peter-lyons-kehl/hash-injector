@@ -9,6 +9,7 @@ pub use flags::{
     _ProtocolFlagsSignalledViaLen, _ProtocolFlagsSignalledViaStr, _ProtocolFlagsSubset,
     ProtocolFlags, new,
 };
+pub use signal::inject;
 
 mod flags;
 mod hasher;
