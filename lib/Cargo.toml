@@ -96,15 +96,13 @@ lz = []
 #default = [          "lz",                 "flags", "chk-flow", "chk-hash", "chk"]
 #                               |                 ||                               
 #default = [                "mx"                                                  ]
+#default = [                "mx"                     "chk-flow", "chk-hash", "chk"]
+#default = [                "mx",           "flags"                               ]
+#default = [                "mx"            "flags", "chk-flow", "chk-hash", "chk"]
+#                               |                 ||                               
 #default = [                "mx", "mx-ptr"                                        ]
-#                               |                 ||                               
 #default = [                "mx", "mx-ptr",          "chk-flow", "chk-hash", "chk"]
-#default = [                "mx", "mx-ptr",          "chk-flow", "chk-hash", "chk"]
-#                               |                 ||                               
-#default = [                "mx", "mx-ptr", "flags"                               ]
-#default = [                "mx", "mx-ptr", "flags"                               ]
-#                               |                 ||                               
-#default = [                "mx", "mx-ptr", "flags", "chk-flow", "chk-hash", "chk"]
+#default = [                "mx", "mx-ptr"  "flags"                               ]
 #default = [                "mx", "mx-ptr", "flags", "chk-flow", "chk-hash", "chk"]
 #                               |                 ||                               
 # ALL logical/functional features:                                                 

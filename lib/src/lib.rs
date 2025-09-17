@@ -1,5 +1,5 @@
 #![doc = include_str!("../../README.md")]
-#![cfg_attr(not(feature = "mx-ptr"), no_std)]
+#![cfg_attr(not(any(feature = "lz", feature = "mx", feature = "mx-ptr")), no_std)]
 #![cfg_attr(not(feature = "mx-ptr"), forbid(unsafe_code))]
 // @TODO comment out:
 //#![cfg_attr(feature = "mx-ptr", feature(const_index))] // https://github.com/rust-lang/rust/issues/143775
@@ -19,13 +19,18 @@ use core::hint;
 #[cfg(feature = "flags")]
 use core::marker::ConstParamTy;
 use core::str;
-use state::SignalState;
-
 #[cfg(feature = "lz")]
 use std::sync::LazyLock;
 #[cfg(feature = "mx-ptr")]
 use std::sync::Mutex;
 
+pub use flags::{
+    _ProtocolFlagsSignalledViaLen, _ProtocolFlagsSignalledViaStr, _ProtocolFlagsSubset,
+    ProtocolFlags, new,
+};
+use state::SignalState;
+
+mod flags;
 mod state;
 
 /// A fictitious slice length, which represents a signal that we either just handed an injected
@@ -88,167 +93,6 @@ fn utf8_str() {
     let utf8 = unsafe { str::from_utf8_unchecked(bytes_slice) };
 }
 
-/// An enum-like Type for const generic parameter `PF`. Use `new_flags_xxx` functions to create the
-/// values.
-///
-/// Do not compare with/store as/pass as values of other types - the actual implementation of the
-/// type is subject to change.
-pub type ProtocolFlags = ProtocolFlagsImpl;
-
-// If we ever have more than one flag, then change this into e.g. u8.
-#[cfg(not(feature = "flags"))]
-type ProtocolFlagsImpl = usize;
-
-#[cfg(feature = "flags")]
-/// Type for const generic parameter `PF`.
-#[derive(ConstParamTy, Clone, Copy, PartialEq, Eq)]
-pub struct ProtocolFlagsImpl {
-    signal_via_str: bool,
-    signal_first: bool,
-}
-
-#[cfg(not(feature = "flags"))]
-const FLAGS_BIT_VIA_STR: ProtocolFlags = 0b1;
-#[cfg(not(feature = "flags"))]
-const FLAGS_BIT_SIGNAL_FIRST: ProtocolFlags = 0b10;
-#[cfg(not(feature = "flags"))]
-const FLAGS_MAX: ProtocolFlags = 0b11;
-
-/// Whether this protocol signals with a fictitious length, that is, via
-/// [`Hasher::write_length_prefix`]. Otherwise it signals with a special static string slice `&str`,
-/// that is, via [`Hasher::write_str`].
-const fn is_signal_via_len(flags: ProtocolFlags) -> bool {
-    #[cfg(not(feature = "flags"))]
-    {
-        debug_assert!(flags <= FLAGS_MAX);
-        flags & FLAGS_BIT_VIA_STR == 0
-    }
-    #[cfg(feature = "flags")]
-    {
-        !flags.signal_via_str
-    }
-}
-/// Whether this protocol signals with a special static string slice `&str, that is, via
-///  [`Hasher::write_str`]. Otherwise it signals with a fictitious length, that is, via
-/// [`Hasher::write_length_prefix`].
-const fn is_signal_via_str(flags: ProtocolFlags) -> bool {
-    #[cfg(not(feature = "flags"))]
-    {
-        debug_assert!(flags <= FLAGS_MAX);
-        flags & FLAGS_BIT_VIA_STR != 0
-    }
-    #[cfg(feature = "flags")]
-    {
-        flags.signal_via_str
-    }
-}
-
-/// Whether the protocol signals before it submits the hash.
-const fn is_signal_first(flags: ProtocolFlags) -> bool {
-    #[cfg(not(feature = "flags"))]
-    {
-        debug_assert!(flags <= FLAGS_MAX);
-        flags & FLAGS_BIT_SIGNAL_FIRST != 0
-    }
-    #[cfg(feature = "flags")]
-    {
-        flags.signal_first
-    }
-}
-/// Whether the protocol submits the hash before it signals.
-const fn is_submit_first(flags: ProtocolFlags) -> bool {
-    #[cfg(not(feature = "flags"))]
-    {
-        #[cfg(feature = "chk")]
-        assert!(flags <= FLAGS_MAX);
-        flags & FLAGS_BIT_SIGNAL_FIRST == 0
-    }
-    #[cfg(feature = "flags")]
-    {
-        !flags.signal_first
-    }
-}
-
-/// Protocol that
-/// - signals with a fictitious length (via [`Hasher::write_length_prefix`]), and
-/// - signals before it submits the hash.
-pub const fn new_flags_len_signal_first() -> ProtocolFlags {
-    #[cfg(not(feature = "flags"))]
-    {
-        FLAGS_BIT_SIGNAL_FIRST
-    }
-    #[cfg(feature = "flags")]
-    ProtocolFlags {
-        signal_via_str: false,
-        signal_first: true,
-    }
-}
-/// Protocol that
-/// - signals with a fictitious length (via [`Hasher::write_length_prefix`]), and
-/// - submits the hash before it signals.
-pub const fn new_flags_len_submit_first() -> ProtocolFlags {
-    #[cfg(not(feature = "flags"))]
-    {
-        0
-    }
-    #[cfg(feature = "flags")]
-    ProtocolFlags {
-        signal_via_str: false,
-        signal_first: false,
-    }
-}
-/// Protocol that
-/// - signals with a  special string slice `&str` (via [`Hasher::write_str`]), and
-/// - signals before it submits the hash.
-pub const fn new_flags_str_signal_first() -> ProtocolFlags {
-    #[cfg(not(feature = "flags"))]
-    {
-        FLAGS_BIT_VIA_STR & FLAGS_BIT_SIGNAL_FIRST
-    }
-    #[cfg(feature = "flags")]
-    ProtocolFlags {
-        signal_via_str: true,
-        signal_first: true,
-    }
-}
-/// Protocol that
-/// - signals with a  special string slice `&str` (via [`Hasher::write_str`]), and
-/// - submits the hash before it signals.
-pub const fn new_flags_str_submit_first() -> ProtocolFlags {
-    #[cfg(not(feature = "flags"))]
-    {
-        FLAGS_BIT_VIA_STR
-    }
-    #[cfg(feature = "flags")]
-    ProtocolFlags {
-        signal_via_str: true,
-        signal_first: false,
-    }
-}
-
-/// Marker trait, making separate [inject_via_len] implementations easier.
-trait _ProtocolFlagsSignalledViaLen {}
-struct _ProtocolFlagsSubset<const PF: ProtocolFlags>;
-impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new_flags_len_signal_first() }> {}
-impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new_flags_len_submit_first() }> {}
-trait _ProtocolFlagsSignalledViaStr {}
-impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new_flags_str_signal_first() }> {}
-impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new_flags_str_submit_first() }> {}
-
-#[cfg(not(feature = "flags"))]
-pub fn ff<const PF: ProtocolFlags>()
-where
-    _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,
-{
-}
-#[cfg(feature = "flags")]
-//fn ff<const PF: ProtocolFlags>() where [(); is_signal_via_len(PF)]: ProtocolFlagsSignalledViaLen {
-pub fn ff<const PF: ProtocolFlags>()
-where
-    _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,
-{
-}
-
 /// For use with [SignalledInjectionHasher] `created by [SignalledInjectionBuildHasher].
 ///
 /// Be careful when using this function with standard/third party [Hasher] (and [BuildHasher])
@@ -272,10 +116,10 @@ where
     _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,
 {
     // extra check, in addition to the check with _ProtocolFlagsSignalledViaLen
-    debug_assert!(is_signal_via_len(PF));
+    debug_assert!(flags::is_signal_via_len(PF));
     // The order of operations is intentionally different for SIGNAL_FIRST. This (hopefully) helps
     // us notice any logical errors or opportunities for improvement in this module earlier.
-    if is_signal_first(PF) {
+    if flags::is_signal_first(PF) {
         hasher.write_length_prefix(LEN_SIGNAL_HASH);
         hasher.write_u64(hash);
     } else {
@@ -288,7 +132,7 @@ where
     assert_eq!(hasher.finish(), hash);
 
     #[cfg(feature = "chk-flow")]
-    hasher.write_length_prefix(if is_signal_first(PF) {
+    hasher.write_length_prefix(if flags::is_signal_first(PF) {
         LEN_SIGNAL_CHECK_METHOD_IS_SIGNAL_FIRST
     } else {
         LEN_SIGNAL_CHECK_METHOD_IS_SUBMIT_FIRST
@@ -445,7 +289,7 @@ pub fn inject_via_str<H: Hasher, S: SignalStrs, const PF: ProtocolFlags>(
     _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaStr,
 {
     // extra check, in addition to the check with _ProtocolFlagsSignalledViaStr
-    debug_assert!(is_signal_via_str(PF));
+    debug_assert!(flags::is_signal_via_str(PF));
     todo!();
 }
 
@@ -538,10 +382,10 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
     }
     fn write_u64(&mut self, i: u64) {
         // the outer if check can get optimized away (const)
-        if is_signal_via_len(PF) {
+        if flags::is_signal_via_len(PF) {
             // @TODO
         }
-        if is_signal_first(PF) {
+        if flags::is_signal_first(PF) {
             if self.state.is_signalled_proposal_coming(PF) {
                 self.state = SignalState::new_hash_received(i);
             } else {
@@ -616,7 +460,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
     }
     fn write_length_prefix(&mut self, len: usize) {
         // the outer if check can get optimized away (const)
-        if is_signal_first(PF) {
+        if flags::is_signal_first(PF) {
             if len == LEN_SIGNAL_HASH {
                 self.assert_nothing_written();
                 self.state.set_signalled_proposal_coming(PF);
