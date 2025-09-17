@@ -1,10 +1,11 @@
 use core::hash::{BuildHasher, Hasher};
 
 use crate::flags::{self, Flow, ProtocolFlags, SignalVia};
-use crate::signal::{
-    self, LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST, LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST,
-    LEN_SIGNAL_HASH,
-};
+#[cfg(feature = "mx")]
+use crate::signal;
+use crate::signal::LEN_SIGNAL_HASH;
+#[cfg(feature = "chk-flow")]
+use crate::signal::{LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST, LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST};
 use crate::state::SignalState;
 #[cfg(feature = "mx")]
 use core::ptr;

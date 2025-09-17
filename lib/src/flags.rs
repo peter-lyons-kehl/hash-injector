@@ -25,7 +25,7 @@ const FLAGS_BIT_VIA_STR: ProtocolFlags = 0b1;
 #[cfg(not(feature = "flags"))]
 const FLAGS_BIT_SIGNAL_FIRST: ProtocolFlags = 0b10;
 #[cfg(not(feature = "flags"))]
-const FLAGS_MAX: ProtocolFlags = 0b11;
+const FLAGS_MAX: ProtocolFlags = 0b1111;
 
 /// Whether this protocol signals with a fictitious length, that is, via
 /// [`Hasher::write_length_prefix`]. Otherwise it signals with a special static string slice `&str`,
@@ -87,7 +87,7 @@ pub const fn is_submit_first(flags: ProtocolFlags) -> bool {
 /// `if is_signal_via...(PF) {...} else {...}`.
 ///
 /// Rust checks match statements to be exhaustive, so one less chance of a mistake.
-#[derive(ConstParamTy, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SignalVia {
     Len,
     Str,
@@ -105,7 +105,7 @@ pub const fn signal_via(flags: ProtocolFlags) -> SignalVia {
 /// `if is_submit_first(PF) {...} else {...}`.
 ///
 /// Rust checks match statements to be exhaustive, so one less chance of a mistake.
-#[derive(ConstParamTy, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Flow {
     SubmitFirst,
     SignalFirst,
@@ -120,6 +120,8 @@ pub const fn flow(flags: ProtocolFlags) -> Flow {
 
 pub mod new {
     use super::ProtocolFlags;
+    #[cfg(not(feature = "flags"))]
+    use super::{FLAGS_BIT_SIGNAL_FIRST, FLAGS_BIT_VIA_STR};
 
     /// Protocol that
     /// - signals with a fictitious length (via [`Hasher::write_length_prefix`]), and

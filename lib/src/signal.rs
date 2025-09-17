@@ -1,5 +1,7 @@
 use core::hash::Hasher;
+#[cfg(feature = "mx")]
 use core::hint;
+#[cfg(feature = "mx")]
 use core::str;
 #[cfg(feature = "mx")]
 use std::sync::Mutex;
@@ -63,7 +65,11 @@ pub fn ptr_signal_check_flow_is_signal_first() -> *const u8 {
 fn signal<H: Hasher>(#[allow(non_snake_case)] PF: ProtocolFlags, hasher: &mut H) {
     match flags::signal_via(PF) {
         SignalVia::Len => hasher.write_length_prefix(LEN_SIGNAL_HASH),
-        SignalVia::Str => hasher.write_str(str_signal_hash()),
+        SignalVia::Str =>
+        {
+            #[cfg(feature = "mx")]
+            hasher.write_str(str_signal_hash())
+        }
     };
 }
 
