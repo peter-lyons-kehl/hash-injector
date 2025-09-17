@@ -1,6 +1,6 @@
 use core::hash::{BuildHasher, Hasher};
 
-use crate::flags::{self, Flow, ProtocolFlags};
+use crate::flags::{self, Flow, ProtocolFlags, SignalVia};
 use crate::signal::{
     LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST, LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST, LEN_SIGNAL_HASH,
 };
@@ -172,51 +172,63 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
         self.written_ordinary_hash();
     }
     fn write_length_prefix(&mut self, len: usize) {
-        // the outer if check can get optimized away (const)
-        if flags::is_signal_first(PF) {
-            if len == LEN_SIGNAL_HASH {
-                self.assert_nothing_written();
-                self.state.set_signalled_proposal_coming(PF);
-            } else {
-                #[cfg(feature = "chk-flow")]
-                {
-                    if len == LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST {
-                        return; // just being checked (no data to write)
-                    }
-                    assert_ne!(len, LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST);
-                }
-
-                self.assert_nothing_written_or_ordinary_hash();
-                self.hasher.write_length_prefix(len);
-                self.written_ordinary_hash();
-            }
-        } else {
-            if len == LEN_SIGNAL_HASH {
-                if self.state.is_hash_possibly_submitted(PF) {
-                    self.state.set_hash_received();
-                } else {
-                    #[cfg(feature = "chk")]
-                    assert!(
-                        false,
-                        "Expected state HashPossiblySubmitted, but it was {:?}.",
-                        self.state
-                    );
-
-                    self.hasher.write_length_prefix(len);
-                    self.written_ordinary_hash();
-                }
-            } else {
-                #[cfg(feature = "chk-flow")]
-                {
-                    if len == LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST {
-                        return; // just being checked (no data to write)
-                    }
-                    assert_ne!(len, LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST);
-                }
-
+        // Logical branches/their conditions can get optimized away (const)
+        match flags::signal_via(PF) {
+            SignalVia::Str => {
                 self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
                 self.hasher.write_length_prefix(len);
                 self.written_ordinary_hash();
+            }
+            SignalVia::Len => {
+                match flags::flow(PF) {
+                    Flow::SubmitFirst => {
+                        if len == LEN_SIGNAL_HASH {
+                            if self.state.is_hash_possibly_submitted(PF) {
+                                self.state.set_hash_received();
+                            } else {
+                                #[cfg(feature = "chk")]
+                                assert!(
+                                    false,
+                                    "Expected state HashPossiblySubmitted, but it was {:?}.",
+                                    self.state
+                                );
+
+                                self.hasher.write_length_prefix(len);
+                                self.written_ordinary_hash();
+                            }
+                        } else {
+                            #[cfg(feature = "chk-flow")]
+                            {
+                                if len == LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST {
+                                    return; // just being checked (no data to write)
+                                }
+                                assert_ne!(len, LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST);
+                            }
+
+                            self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+                            self.hasher.write_length_prefix(len);
+                            self.written_ordinary_hash();
+                        }
+                    }
+                    Flow::SignalFirst => {
+                        if len == LEN_SIGNAL_HASH {
+                            self.assert_nothing_written();
+                            self.state.set_signalled_proposal_coming(PF);
+                        } else {
+                            #[cfg(feature = "chk-flow")]
+                            {
+                                if len == LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST {
+                                    return; // just being checked (no data to write)
+                                }
+                                assert_ne!(len, LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST);
+                            }
+
+                            self.assert_nothing_written_or_ordinary_hash();
+                            self.hasher.write_length_prefix(len);
+                            self.written_ordinary_hash();
+                        }
+                    }
+                }
             }
         }
     }
