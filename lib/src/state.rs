@@ -103,7 +103,7 @@ impl SignalState {
         matches!(self.kind, SignalStateKind::NothingWritten)
     }
     #[cfg(feature = "chk")]
-    pub const fn is_nothing_written_or_ordinary_hash(&self) -> bool {
+    const fn is_nothing_written_or_ordinary_hash(&self) -> bool {
         matches!(
             self.kind,
             SignalStateKind::NothingWritten | SignalStateKind::WrittenOrdinaryHash
@@ -114,7 +114,7 @@ impl SignalState {
     /// - nothing written, or
     /// - ordinary hash data written, or
     /// - hash was possibly submitted - but that is checked only if `submit_first(PF)==true` ( otherwise this state is not applicable).
-    pub const fn is_nothing_written_or_ordinary_hash_or_possibly_submitted(
+    const fn is_nothing_written_or_ordinary_hash_or_possibly_submitted(
         &self,
         #[allow(non_snake_case)] PF: ProtocolFlags,
     ) -> bool {
@@ -199,13 +199,11 @@ impl SignalState {
     }
 }
 
-const _VERIFY: () = {
-    if !matches!(
+const _CHECKS: () = {
+    assert!(matches!(
         SignalState::new_nothing_written().kind,
         SignalStateKind::NothingWritten
-    ) {
-        panic!();
-    }
+    ));
     {
         let mut ordinary_zero_hash = SignalState::new_nothing_written();
         ordinary_zero_hash.set_written_ordinary_hash();

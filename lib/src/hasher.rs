@@ -73,9 +73,8 @@ impl<H: Hasher, const PF: ProtocolFlags> SignalledInjectionHasher<H, PF> {
     /// actual data may also be a `i64, u128, i128`.
     #[must_use]
     fn possibly_submit(&mut self, i: u64) -> PossiblySubmitResult {
-        // the outer if check can get optimized away (const)
-        if flags::is_hash_via_u64(PF) {
-            if flags::is_signal_first(PF) {
+        match flags::flow(PF) {
+            Flow::SignalFirst => {
                 if self.state.is_signalled_proposal_coming(PF) {
                     self.state = SignalState::new_hash_received(i);
                     PossiblySubmitResult::new(false)
@@ -84,7 +83,8 @@ impl<H: Hasher, const PF: ProtocolFlags> SignalledInjectionHasher<H, PF> {
                     self.written_ordinary_hash();
                     PossiblySubmitResult::new(true)
                 }
-            } else {
+            }
+            Flow::SubmitFirst => {
                 self.state
                     .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
 
@@ -103,11 +103,6 @@ impl<H: Hasher, const PF: ProtocolFlags> SignalledInjectionHasher<H, PF> {
                 // of a &dyn trait reference):
                 PossiblySubmitResult::new(true)
             }
-        } else {
-            self.state
-                .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
-            self.written_ordinary_hash();
-            PossiblySubmitResult::new(true)
         }
     }
 }
@@ -155,45 +150,15 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
         self.written_ordinary_hash();
     }
     fn write_u64(&mut self, i: u64) {
-        if self.possibly_submit(i).must_write_data_afterwards() {
-            self.hasher.write_u64(i);
-        }
-        if false {
-            // @TODO remove
-            // the outer if check can get optimized away (const)
-            if flags::is_hash_via_u64(PF) {
-                if flags::is_signal_first(PF) {
-                    if self.state.is_signalled_proposal_coming(PF) {
-                        self.state = SignalState::new_hash_received(i);
-                    } else {
-                        self.state.assert_nothing_written_or_ordinary_hash();
-                        self.hasher.write_u64(i);
-                        self.written_ordinary_hash();
-                    }
-                } else {
-                    self.state
-                        .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
-                    // If we are indeed signalling, then after the following write_u64(...) the value
-                    // written to the underlying Hasher will NOT be used, because finish(&self) then
-                    // returns the injected hash - instead of calling the underlying Hasher's finish().
-                    // So, the compiler MAY optimize the following call away (thanks to Hasher objects
-                    // being passed by generic reference - instead of a &dyn trait reference):
-                    self.hasher.write_u64(i);
-
-                    if self.state.is_nothing_written() {
-                        self.state = SignalState::new_hash_possibly_submitted(i, PF);
-                    } else {
-                        // In case the hash was "possibly_submitted", submitting any more data (u64 or
-                        // otherwise) invalidates it.
-                        self.state.set_written_ordinary_hash();
-                    }
-                }
-            } else {
-                self.state
-                    .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
+        if flags::is_hash_via_u64(PF) {
+            if self.possibly_submit(i).must_write_data_afterwards() {
                 self.hasher.write_u64(i);
-                self.written_ordinary_hash();
             }
+        } else {
+            self.state
+                .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
+            self.hasher.write_u64(i);
+            self.written_ordinary_hash();
         }
     }
     #[inline]
