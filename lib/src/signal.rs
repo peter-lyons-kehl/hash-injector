@@ -8,7 +8,8 @@ use std::sync::Mutex;
 
 use crate::flags;
 use flags::{
-    /*_ProtocolFlagsSignalledViaLen, _ProtocolFlagsSubset,*/ Flow, ProtocolFlags, SignalVia,
+    /*_ProtocolFlagsSignalledViaLen, _ProtocolFlagsSubset,*/ Flow, HashVia, ProtocolFlags,
+    SignalVia,
 };
 
 /// A fictitious slice length, which represents a signal that we either just handed an injected
@@ -104,6 +105,24 @@ fn signal<H: Hasher>(#[allow(non_snake_case)] PF: ProtocolFlags, _hasher: &mut H
             _hasher.write_str(str_signal_hash());
             #[cfg(not(all(feature = "mx", feature = "hpe")))]
             unreachable!()
+        }
+    };
+}
+
+#[inline(always)]
+fn submit<H: Hasher>(#[allow(non_snake_case)] PF: ProtocolFlags, _hasher: &mut H, hash: u64) {
+    match flags::hash_via(PF) {
+        HashVia::U64 => {
+            _hasher.write_u64(hash);
+        }
+        HashVia::I64 => {
+            _hasher.write_i64(hash as i64);
+        }
+        HashVia::U128 => {
+            _hasher.write_u128(hash as u128);
+        }
+        HashVia::I128 => {
+            _hasher.write_i128(hash as i128);
         }
     };
 }

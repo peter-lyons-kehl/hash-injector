@@ -14,7 +14,7 @@ type ProtocolFlagsImpl = u8;
 
 #[cfg(feature = "flags")]
 #[derive(ConstParamTy, Clone, Copy, PartialEq, Eq)]
-enum HashViaInternal {
+pub(crate) enum HashVia {
     U64,
     I64,
     U128,
@@ -23,7 +23,7 @@ enum HashViaInternal {
 
 #[cfg_attr(feature = "flags", derive(ConstParamTy))]
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum SignalVia {
+pub(crate) enum SignalVia {
     U8s,
     Len,
     Str,
@@ -35,7 +35,7 @@ pub enum SignalVia {
 pub struct ProtocolFlagsImpl {
     signal_via: SignalVia,
     signal_first: bool,
-    hash_via: HashViaInternal,
+    hash_via: HashVia,
 }
 
 #[cfg(not(feature = "flags"))]
@@ -141,7 +141,7 @@ pub const fn is_hash_via_u64(flags: ProtocolFlags) -> bool {
     }
     #[cfg(feature = "flags")]
     {
-        matches!(flags.hash_via, HashViaInternal::U64)
+        matches!(flags.hash_via, HashVia::U64)
     }
 }
 pub const fn is_hash_via_i64(flags: ProtocolFlags) -> bool {
@@ -153,7 +153,7 @@ pub const fn is_hash_via_i64(flags: ProtocolFlags) -> bool {
     }
     #[cfg(feature = "flags")]
     {
-        matches!(flags.hash_via, HashViaInternal::I64)
+        matches!(flags.hash_via, HashVia::I64)
     }
 }
 pub const fn is_hash_via_u128(flags: ProtocolFlags) -> bool {
@@ -165,7 +165,7 @@ pub const fn is_hash_via_u128(flags: ProtocolFlags) -> bool {
     }
     #[cfg(feature = "flags")]
     {
-        matches!(flags.hash_via, HashViaInternal::U128)
+        matches!(flags.hash_via, HashVia::U128)
     }
 }
 pub const fn is_hash_via_i128(flags: ProtocolFlags) -> bool {
@@ -177,17 +177,31 @@ pub const fn is_hash_via_i128(flags: ProtocolFlags) -> bool {
     }
     #[cfg(feature = "flags")]
     {
-        matches!(flags.hash_via, HashViaInternal::I128)
+        matches!(flags.hash_via, HashVia::I128)
     }
 }
 
-pub const fn signal_via(flags: ProtocolFlags) -> SignalVia {
+pub(crate) const fn signal_via(flags: ProtocolFlags) -> SignalVia {
     if is_signal_via_u8s(flags) {
         SignalVia::U8s
     } else if is_signal_via_len(flags) {
         SignalVia::Len
     } else if is_signal_via_str(flags) {
         SignalVia::Str
+    } else {
+        unreachable!()
+    }
+}
+
+pub(crate) const fn hash_via(flags: ProtocolFlags) -> HashVia {
+    if is_hash_via_u64(flags) {
+        HashVia::U64
+    } else if is_hash_via_i64(flags) {
+        HashVia::I64
+    } else if is_hash_via_u128(flags) {
+        HashVia::U128
+    } else if is_hash_via_i128(flags) {
+        HashVia::I128
     } else {
         unreachable!()
     }
@@ -224,7 +238,7 @@ pub mod new {
             use crate::flags::ProtocolFlags;
 
             #[cfg(feature = "flags")]
-            use crate::flags::{HashViaInternal, SignalVia};
+            use crate::flags::{HashVia, SignalVia};
 
             #[cfg(not(feature = "flags"))]
             use crate::flags::{
@@ -244,7 +258,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::U8s,
-                    hash_via: HashViaInternal::U64,
+                    hash_via: HashVia::U64,
                     signal_first: true,
                 }
             }
@@ -261,7 +275,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::U8s,
-                    hash_via: HashViaInternal::I64,
+                    hash_via: HashVia::I64,
                     signal_first: true,
                 }
             }
@@ -278,7 +292,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::U8s,
-                    hash_via: HashViaInternal::U128,
+                    hash_via: HashVia::U128,
                     signal_first: true,
                 }
             }
@@ -295,7 +309,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::U8s,
-                    hash_via: HashViaInternal::I128,
+                    hash_via: HashVia::I128,
                     signal_first: true,
                 }
             }
@@ -308,7 +322,7 @@ pub mod new {
             use crate::flags::ProtocolFlags;
 
             #[cfg(feature = "flags")]
-            use crate::flags::{HashViaInternal, SignalVia};
+            use crate::flags::{HashVia, SignalVia};
 
             #[cfg(not(feature = "flags"))]
             use crate::flags::{
@@ -328,7 +342,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::U8s,
-                    hash_via: HashViaInternal::U64,
+                    hash_via: HashVia::U64,
                     signal_first: false,
                 }
             }
@@ -345,7 +359,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::U8s,
-                    hash_via: HashViaInternal::I64,
+                    hash_via: HashVia::I64,
                     signal_first: false,
                 }
             }
@@ -362,7 +376,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::U8s,
-                    hash_via: HashViaInternal::U128,
+                    hash_via: HashVia::U128,
                     signal_first: false,
                 }
             }
@@ -379,7 +393,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::U8s,
-                    hash_via: HashViaInternal::I128,
+                    hash_via: HashVia::I128,
                     signal_first: false,
                 }
             }
@@ -397,7 +411,7 @@ pub mod new {
             use crate::flags::ProtocolFlags;
 
             #[cfg(feature = "flags")]
-            use crate::flags::{HashViaInternal, SignalVia};
+            use crate::flags::{HashVia, SignalVia};
 
             #[cfg(not(feature = "flags"))]
             use crate::flags::{
@@ -417,7 +431,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::Len,
-                    hash_via: HashViaInternal::U64,
+                    hash_via: HashVia::U64,
                     signal_first: true,
                 }
             }
@@ -435,7 +449,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::Len,
-                    hash_via: HashViaInternal::I64,
+                    hash_via: HashVia::I64,
                     signal_first: true,
                 }
             }
@@ -452,7 +466,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::Len,
-                    hash_via: HashViaInternal::U128,
+                    hash_via: HashVia::U128,
                     signal_first: true,
                 }
             }
@@ -469,7 +483,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::Len,
-                    hash_via: HashViaInternal::I128,
+                    hash_via: HashVia::I128,
                     signal_first: true,
                 }
             }
@@ -482,7 +496,7 @@ pub mod new {
             use crate::flags::ProtocolFlags;
 
             #[cfg(feature = "flags")]
-            use crate::flags::{HashViaInternal, SignalVia};
+            use crate::flags::{HashVia, SignalVia};
 
             #[cfg(not(feature = "flags"))]
             use crate::flags::{
@@ -502,7 +516,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::Len,
-                    hash_via: HashViaInternal::U64,
+                    hash_via: HashVia::U64,
                     signal_first: false,
                 }
             }
@@ -520,7 +534,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::Len,
-                    hash_via: HashViaInternal::I64,
+                    hash_via: HashVia::I64,
                     signal_first: false,
                 }
             }
@@ -537,7 +551,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::Len,
-                    hash_via: HashViaInternal::U128,
+                    hash_via: HashVia::U128,
                     signal_first: false,
                 }
             }
@@ -554,7 +568,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::Len,
-                    hash_via: HashViaInternal::I128,
+                    hash_via: HashVia::I128,
                     signal_first: false,
                 }
             }
@@ -572,7 +586,7 @@ pub mod new {
             use crate::flags::ProtocolFlags;
 
             #[cfg(feature = "flags")]
-            use crate::flags::{HashViaInternal, SignalVia};
+            use crate::flags::{HashVia, SignalVia};
 
             #[cfg(not(feature = "flags"))]
             use crate::flags::{
@@ -592,7 +606,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::Str,
-                    hash_via: HashViaInternal::U64,
+                    hash_via: HashVia::U64,
                     signal_first: true,
                 }
             }
@@ -609,7 +623,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::Str,
-                    hash_via: HashViaInternal::I64,
+                    hash_via: HashVia::I64,
                     signal_first: true,
                 }
             }
@@ -626,7 +640,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::Str,
-                    hash_via: HashViaInternal::U128,
+                    hash_via: HashVia::U128,
                     signal_first: true,
                 }
             }
@@ -643,7 +657,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::Str,
-                    hash_via: HashViaInternal::I128,
+                    hash_via: HashVia::I128,
                     signal_first: true,
                 }
             }
@@ -656,7 +670,7 @@ pub mod new {
             use crate::flags::ProtocolFlags;
 
             #[cfg(feature = "flags")]
-            use crate::flags::{HashViaInternal, SignalVia};
+            use crate::flags::{HashVia, SignalVia};
 
             #[cfg(not(feature = "flags"))]
             use crate::flags::{
@@ -676,7 +690,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::Str,
-                    hash_via: HashViaInternal::U64,
+                    hash_via: HashVia::U64,
                     signal_first: false,
                 }
             }
@@ -693,7 +707,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::Str,
-                    hash_via: HashViaInternal::I64,
+                    hash_via: HashVia::I64,
                     signal_first: false,
                 }
             }
@@ -710,7 +724,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::Str,
-                    hash_via: HashViaInternal::U128,
+                    hash_via: HashVia::U128,
                     signal_first: false,
                 }
             }
@@ -727,7 +741,7 @@ pub mod new {
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
                     signal_via: SignalVia::Str,
-                    hash_via: HashViaInternal::I128,
+                    hash_via: HashVia::I128,
                     signal_first: false,
                 }
             }
