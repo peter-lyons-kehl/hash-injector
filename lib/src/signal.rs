@@ -49,6 +49,19 @@ pub fn str_signal_check_flow_is_signal_first() -> &'static str {
 }
 
 #[cfg(feature = "mx")]
+pub fn u8s_signal_hash() -> &'static [u8] {
+    str_signal_hash().as_bytes()
+}
+#[cfg(all(feature = "mx", feature = "chk-flow"))]
+pub fn u8s_signal_check_flow_is_submit_first() -> &'static [u8] {
+    str_signal_check_flow_is_submit_first().as_bytes()
+}
+#[cfg(all(feature = "mx", feature = "chk-flow"))]
+pub fn u8s_signal_check_flow_is_signal_first() -> &'static [u8] {
+    str_signal_check_flow_is_signal_first().as_bytes()
+}
+
+#[cfg(feature = "mx")]
 pub fn ptr_signal_hash() -> *const u8 {
     MX.data_ptr() as *const u8
 }
@@ -64,7 +77,12 @@ pub fn ptr_signal_check_flow_is_signal_first() -> *const u8 {
 #[inline(always)]
 fn signal<H: Hasher>(#[allow(non_snake_case)] PF: ProtocolFlags, hasher: &mut H) {
     match flags::signal_via(PF) {
-        SignalVia::U8s => todo!(),
+        SignalVia::U8s => {
+            #[cfg(feature = "mx")]
+            hasher.write(u8s_signal_hash());
+            #[cfg(not(feature = "mx"))]
+            unreachable!()
+        }
         SignalVia::Len => {
             #[cfg(feature = "hpe")]
             hasher.write_length_prefix(LEN_SIGNAL_HASH);
@@ -106,11 +124,17 @@ _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,*/
     match flags::flow(PF) {
         Flow::SubmitFirst => {
             hasher.write_u64(hash);
+            if true {
+                todo!("i64, u128, i128");
+            }
             signal(PF, hasher);
         }
         Flow::SignalFirst => {
             signal(PF, hasher);
             hasher.write_u64(hash);
+            if true {
+                todo!("i64, u128, i128");
+            }
         }
     }
     // Check that finish() does return the signalled hash. We do this BEFORE
@@ -122,7 +146,12 @@ _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,*/
     match flags::flow(PF) {
         Flow::SubmitFirst => {
             match flags::signal_via(PF) {
-                SignalVia::U8s => todo!(),
+                SignalVia::U8s => {
+                    #[cfg(feature = "mx")]
+                    hasher.write(u8s_signal_check_flow_is_submit_first());
+                    #[cfg(not(feature = "mx"))]
+                    unreachable!()
+                }
 
                 SignalVia::Len => {
                     #[cfg(all(feature = "mx", feature = "hpe"))]
@@ -140,7 +169,13 @@ _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,*/
         }
         Flow::SignalFirst => {
             match flags::signal_via(PF) {
-                SignalVia::U8s => todo!(),
+                SignalVia::U8s => {
+                    #[cfg(feature = "mx")]
+                    hasher.write(u8s_signal_check_flow_is_signal_first());
+                    #[cfg(not(feature = "mx"))]
+                    unreachable!()
+
+                }
                 SignalVia::Len => {
                     #[cfg(all(feature = "mx", feature = "hpe"))]
                     hasher.write_length_prefix(LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST);
