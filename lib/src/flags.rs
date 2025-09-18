@@ -105,7 +105,7 @@ pub const fn is_submit_first(flags: ProtocolFlags) -> bool {
     }
 }
 
-pub const fn is_via_u64(flags: ProtocolFlags) -> bool {
+pub const fn is_hash_via_u64(flags: ProtocolFlags) -> bool {
     #[cfg(not(feature = "flags"))]
     {
         #[cfg(feature = "chk")]
@@ -117,7 +117,7 @@ pub const fn is_via_u64(flags: ProtocolFlags) -> bool {
         matches!(flags.hash_via, HashViaInternal::U64)
     }
 }
-pub const fn is_via_i64(flags: ProtocolFlags) -> bool {
+pub const fn is_hash_via_i64(flags: ProtocolFlags) -> bool {
     #[cfg(not(feature = "flags"))]
     {
         #[cfg(feature = "chk")]
@@ -129,7 +129,7 @@ pub const fn is_via_i64(flags: ProtocolFlags) -> bool {
         matches!(flags.hash_via, HashViaInternal::I64)
     }
 }
-pub const fn is_via_u128(flags: ProtocolFlags) -> bool {
+pub const fn is_hash_via_u128(flags: ProtocolFlags) -> bool {
     #[cfg(not(feature = "flags"))]
     {
         #[cfg(feature = "chk")]
@@ -141,7 +141,7 @@ pub const fn is_via_u128(flags: ProtocolFlags) -> bool {
         matches!(flags.hash_via, HashViaInternal::U128)
     }
 }
-pub const fn is_via_i128(flags: ProtocolFlags) -> bool {
+pub const fn is_hash_via_i128(flags: ProtocolFlags) -> bool {
     #[cfg(not(feature = "flags"))]
     {
         #[cfg(feature = "chk")]
@@ -563,6 +563,7 @@ impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new::len_u64::sign
 impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new::len_u64::submit_first() }> {}
 impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new::len_i64::signal_first() }> {}
 impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new::len_i64::submit_first() }> {}
+
 impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new::len_u128::signal_first() }> {}
 impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new::len_u128::submit_first() }> {}
 impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new::len_i128::signal_first() }> {}
@@ -573,7 +574,72 @@ impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str_u64::sign
 impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str_u64::submit_first() }> {}
 impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str_i64::signal_first() }> {}
 impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str_i64::submit_first() }> {}
+
 impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str_u128::signal_first() }> {}
 impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str_u128::submit_first() }> {}
 impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str_i128::signal_first() }> {}
 impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str_i128::submit_first() }> {}
+
+const _CHECKS: () = {
+    assert!(is_signal_via_len(new::len_u64::signal_first())==true);
+    assert!(is_signal_via_len(new::len_u64::submit_first())==true);
+    assert!(is_signal_via_len(new::len_i64::signal_first())==true);
+    assert!(is_signal_via_len(new::len_i64::submit_first())==true);
+
+    assert!(is_signal_via_len(new::len_u128::signal_first())==true);
+    assert!(is_signal_via_len(new::len_u128::submit_first())==true);
+    assert!(is_signal_via_len(new::len_i128::signal_first())==true);
+    assert!(is_signal_via_len(new::len_i128::submit_first())==true);
+
+    assert!(is_signal_via_str(new::str_u64::signal_first())==true);
+    assert!(is_signal_via_str(new::str_u64::submit_first())==true);
+    assert!(is_signal_via_str(new::str_i64::signal_first())==true);
+    assert!(is_signal_via_str(new::str_i64::submit_first())==true);
+
+    assert!(is_signal_via_str(new::str_u128::signal_first())==true);
+    assert!(is_signal_via_str(new::str_u128::submit_first())==true);
+    assert!(is_signal_via_str(new::str_i128::signal_first())==true);
+    assert!(is_signal_via_str(new::str_i128::submit_first())==true);
+    // ----
+
+    assert!(is_signal_first(new::len_u64::signal_first())==true);
+    assert!(is_submit_first(new::len_u64::submit_first())==true);
+    assert!(is_signal_first(new::len_i64::signal_first())==true);
+    assert!(is_submit_first(new::len_i64::submit_first())==true);
+
+    assert!(is_signal_first(new::len_u128::signal_first())==true);
+    assert!(is_submit_first(new::len_u128::submit_first())==true);
+    assert!(is_signal_first(new::len_i128::signal_first())==true);
+    assert!(is_submit_first(new::len_i128::submit_first())==true);
+
+    assert!(is_signal_first(new::str_u64::signal_first())==true);
+    assert!(is_submit_first(new::str_u64::submit_first())==true);
+    assert!(is_signal_first(new::str_i64::signal_first())==true);
+    assert!(is_submit_first(new::str_i64::submit_first())==true);
+
+    assert!(is_signal_first(new::str_u128::signal_first())==true);
+    assert!(is_submit_first(new::str_u128::submit_first())==true);
+    assert!(is_signal_first(new::str_i128::signal_first())==true);
+    assert!(is_submit_first(new::str_i128::submit_first())==true);
+    // ----
+
+    assert!(is_hash_via_u64(new::len_u64::signal_first())==true);
+    assert!(is_hash_via_u64(new::len_u64::submit_first())==true);
+    assert!(is_hash_via_i64(new::len_i64::signal_first())==true);
+    assert!(is_hash_via_i64(new::len_i64::submit_first())==true);
+
+    assert!(is_hash_via_u128(new::len_u128::signal_first())==true);
+    assert!(is_hash_via_u128(new::len_u128::submit_first())==true);
+    assert!(is_hash_via_i128(new::len_i128::signal_first())==true);
+    assert!(is_hash_via_i128(new::len_i128::submit_first())==true);
+
+    assert!(is_hash_via_u64(new::str_u64::signal_first())==true);
+    assert!(is_hash_via_u64(new::str_u64::submit_first())==true);
+    assert!(is_hash_via_i64(new::str_i64::signal_first())==true);
+    assert!(is_hash_via_i64(new::str_i64::submit_first())==true);
+
+    assert!(is_hash_via_u128(new::str_u128::signal_first())==true);
+    assert!(is_hash_via_u128(new::str_u128::submit_first())==true);
+    assert!(is_hash_via_i128(new::str_i128::signal_first())==true);
+    assert!(is_hash_via_i128(new::str_i128::submit_first())==true);
+};
