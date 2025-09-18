@@ -71,7 +71,7 @@ pub const fn is_signal_via_u8s(flags: ProtocolFlags) -> bool {
     #[cfg(not(feature = "flags"))]
     {
         debug_assert!(flags <= FLAGS_MAX);
-        flags & FLAGS_BITS_VIA == FLAGS_MASK_VIA_LEN
+        flags & FLAGS_BITS_VIA == FLAGS_MASK_VIA_U8S
     }
     #[cfg(feature = "flags")]
     {
@@ -209,184 +209,171 @@ pub const fn flow(flags: ProtocolFlags) -> Flow {
 
 /// Constructors of [ProtocolFlags].
 pub mod new {
-    /// Constructors of [crate::ProtocolFlags] for protocols that that
-    /// signal with a fictitious u8 slice (via [`core::hash::Hasher::write`]).
+    /// Constructors of [crate::ProtocolFlags] for protocols that
+    /// signal with a dedicated u8 slice (via [`core::hash::Hasher::write`]).
     pub mod u8s {
-        /// Constructors of [crate::ProtocolFlags] for protocols that that
-        /// - signal with a fictitious u8 slice (via [`core::hash::Hasher::write`]).
-        /// - sends hash via [core::hash::Hasher::write_u64].
-        pub mod u8s_u64 {
+        /// Constructors of [crate::ProtocolFlags] for protocols that
+        /// - signal with a dedicated u8 slice (via [`core::hash::Hasher::write`]).
+        /// - signal before they submit the hash.
+        pub mod signal_first {
             use crate::flags::ProtocolFlags;
 
             #[cfg(feature = "flags")]
             use crate::flags::{HashViaInternal, SignalVia};
 
             #[cfg(not(feature = "flags"))]
-            use crate::flags::{FLAGS_BIT_SIGNAL_FIRST, FLAGS_MASK_HASH_U64, FLAGS_MASK_VIA_LEN};
+            use crate::flags::{
+                FLAGS_BIT_SIGNAL_FIRST, FLAGS_MASK_HASH_I64, FLAGS_MASK_HASH_I128,
+                FLAGS_MASK_HASH_U64, FLAGS_MASK_HASH_U128, FLAGS_MASK_VIA_U8S,
+            };
 
             /// Flag constructor for protocols that
-            /// - signals with a fictitious length (via [`core::hash::Hasher::write_length_prefix`]).
+            /// - signals with a dedicated u8 slice (via [`core::hash::Hasher::write`])
             /// - sends hash via [core::hash::Hasher::write_u64]
             /// - signals before it submits the hash.
-            pub const fn signal_first() -> ProtocolFlags {
+            pub const fn u64() -> ProtocolFlags {
                 #[cfg(not(feature = "flags"))]
                 {
-                    FLAGS_MASK_VIA_LEN | FLAGS_BIT_SIGNAL_FIRST | FLAGS_MASK_HASH_U64
+                    FLAGS_MASK_VIA_U8S | FLAGS_BIT_SIGNAL_FIRST | FLAGS_MASK_HASH_U64
                 }
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
-                    signal_via: SignalVia::Len,
+                    signal_via: SignalVia::U8s,
                     hash_via: HashViaInternal::U64,
                     signal_first: true,
                 }
             }
-            /// Flag constructor for protocols that
-            /// - signals with a fictitious length (via [`core::hash::Hasher::write_length_prefix`]).
-            /// - sends hash via [core::hash::Hasher::write_u64]
-            /// - submits the hash before it signals.
-            pub const fn submit_first() -> ProtocolFlags {
-                #[cfg(not(feature = "flags"))]
-                {
-                    FLAGS_MASK_VIA_LEN | 0 | FLAGS_MASK_HASH_U64
-                }
-                #[cfg(feature = "flags")]
-                ProtocolFlags {
-                    signal_via: SignalVia::Len,
-                    hash_via: HashViaInternal::U64,
-                    signal_first: false,
-                }
-            }
-        }
-        /// Constructors of [crate::ProtocolFlags] for protocols that that
-        /// - signal with a fictitious length (via [`core::hash::Hasher::write_length_prefix`]).
-        /// - sends hash via [core::hash::Hasher::write_i64].
-        pub mod len_i64 {
-            use crate::flags::ProtocolFlags;
-
-            #[cfg(feature = "flags")]
-            use crate::flags::{HashViaInternal, SignalVia};
-
-            #[cfg(not(feature = "flags"))]
-            use crate::flags::{FLAGS_BIT_SIGNAL_FIRST, FLAGS_MASK_HASH_I64, FLAGS_MASK_VIA_LEN};
 
             /// Flag constructor for protocols that
-            /// - signals with a fictitious length (via [`core::hash::Hasher::write_length_prefix`]).
+            /// - signals with a dedicated u8 slice (via [`core::hash::Hasher::write`])
             /// - sends hash via [core::hash::Hasher::write_i64]
             /// - signals before it submits the hash.
-            pub const fn signal_first() -> ProtocolFlags {
+            pub const fn i64() -> ProtocolFlags {
                 #[cfg(not(feature = "flags"))]
                 {
-                    FLAGS_MASK_VIA_LEN | FLAGS_BIT_SIGNAL_FIRST | FLAGS_MASK_HASH_I64
+                    FLAGS_MASK_VIA_U8S | FLAGS_BIT_SIGNAL_FIRST | FLAGS_MASK_HASH_I64
                 }
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
-                    signal_via: SignalVia::Len,
+                    signal_via: SignalVia::U8s,
                     hash_via: HashViaInternal::I64,
                     signal_first: true,
                 }
             }
-            /// Flag constructor for protocols that
-            /// - signals with a fictitious length (via [`core::hash::Hasher::write_length_prefix`]).
-            /// - sends hash via [core::hash::Hasher::write_i64]
-            /// - submits the hash before it signals.
-            pub const fn submit_first() -> ProtocolFlags {
-                #[cfg(not(feature = "flags"))]
-                {
-                    FLAGS_MASK_VIA_LEN | 0 | FLAGS_MASK_HASH_I64
-                }
-                #[cfg(feature = "flags")]
-                ProtocolFlags {
-                    signal_via: SignalVia::Len,
-                    hash_via: HashViaInternal::I64,
-                    signal_first: false,
-                }
-            }
-        }
-        /// Constructors of [crate::ProtocolFlags] for protocols that that
-        /// - signal with a fictitious length (via [`core::hash::Hasher::write_length_prefix`]).
-        /// - sends hash via [core::hash::Hasher::write_u128].
-        pub mod len_u128 {
-            use crate::flags::ProtocolFlags;
-
-            #[cfg(feature = "flags")]
-            use crate::flags::{HashViaInternal, SignalVia};
-
-            #[cfg(not(feature = "flags"))]
-            use crate::flags::{FLAGS_BIT_SIGNAL_FIRST, FLAGS_MASK_HASH_U128, FLAGS_MASK_VIA_LEN};
 
             /// Flag constructor for protocols that
-            /// - signals with a fictitious length (via [`core::hash::Hasher::write_length_prefix`]).
+            /// - signals with a dedicated u8 slice (via [`core::hash::Hasher::write`])
             /// - sends hash via [core::hash::Hasher::write_u128]
             /// - signals before it submits the hash.
-            pub const fn signal_first() -> ProtocolFlags {
+            pub const fn u128() -> ProtocolFlags {
                 #[cfg(not(feature = "flags"))]
                 {
-                    FLAGS_MASK_VIA_LEN | FLAGS_BIT_SIGNAL_FIRST | FLAGS_MASK_HASH_U128
+                    FLAGS_MASK_VIA_U8S | FLAGS_BIT_SIGNAL_FIRST | FLAGS_MASK_HASH_U128
                 }
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
-                    signal_via: SignalVia::Len,
+                    signal_via: SignalVia::U8s,
                     hash_via: HashViaInternal::U128,
                     signal_first: true,
                 }
             }
-            /// Flag constructor for protocols that
-            /// - signals with a fictitious length (via [`core::hash::Hasher::write_length_prefix`]).
-            /// - sends hash via [core::hash::Hasher::write_u129]
-            /// - submits the hash before it signals.
-            pub const fn submit_first() -> ProtocolFlags {
-                #[cfg(not(feature = "flags"))]
-                {
-                    FLAGS_MASK_VIA_LEN | 0 | FLAGS_MASK_HASH_U128
-                }
-                #[cfg(feature = "flags")]
-                ProtocolFlags {
-                    signal_via: SignalVia::Len,
-                    hash_via: HashViaInternal::U128,
-                    signal_first: false,
-                }
-            }
-        }
-        /// Constructors of [crate::ProtocolFlags] for protocols that that
-        /// - signal with a fictitious length (via [`core::hash::Hasher::write_length_prefix`]).
-        /// - sends hash via [core::hash::Hasher::write_i128].
-        pub mod len_i128 {
-            use crate::flags::ProtocolFlags;
-
-            #[cfg(feature = "flags")]
-            use crate::flags::{HashViaInternal, SignalVia};
-
-            #[cfg(not(feature = "flags"))]
-            use crate::flags::{FLAGS_BIT_SIGNAL_FIRST, FLAGS_MASK_HASH_I128, FLAGS_MASK_VIA_LEN};
 
             /// Flag constructor for protocols that
-            /// - signals with a fictitious length (via [`Hasher::write_length_prefix`]).
+            /// - signals with a dedicated u8 slice (via [`core::hash::Hasher::write`])
             /// - sends hash via [core::hash::Hasher::write_u128]
             /// - signals before it submits the hash.
-            pub const fn signal_first() -> ProtocolFlags {
+            pub const fn i128() -> ProtocolFlags {
                 #[cfg(not(feature = "flags"))]
                 {
-                    FLAGS_MASK_VIA_LEN | FLAGS_BIT_SIGNAL_FIRST | FLAGS_MASK_HASH_I128
+                    FLAGS_MASK_VIA_U8S | FLAGS_BIT_SIGNAL_FIRST | FLAGS_MASK_HASH_I128
                 }
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
-                    signal_via: SignalVia::Len,
+                    signal_via: SignalVia::U8s,
                     hash_via: HashViaInternal::I128,
                     signal_first: true,
                 }
             }
+        }
+
+        /// Constructors of [crate::ProtocolFlags] for protocols that
+        /// - signal with a dedicated u8 slice (via [`core::hash::Hasher::write`])
+        /// - submit the hash before they signal.
+        pub mod submit_first {
+            use crate::flags::ProtocolFlags;
+
+            #[cfg(feature = "flags")]
+            use crate::flags::{HashViaInternal, SignalVia};
+
+            #[cfg(not(feature = "flags"))]
+            use crate::flags::{
+                FLAGS_MASK_HASH_I64, FLAGS_MASK_HASH_I128, FLAGS_MASK_HASH_U64,
+                FLAGS_MASK_HASH_U128, FLAGS_MASK_VIA_U8S,
+            };
+
             /// Flag constructor for protocols that
-            /// - signals with a fictitious length (via [`Hasher::write_length_prefix`]).
-            /// - sends hash via [core::hash::Hasher::write_u129]
+            /// - signals with a dedicated u8 slice (via [`core::hash::Hasher::write`])
+            /// - sends hash via [core::hash::Hasher::write_u64]
             /// - submits the hash before it signals.
-            pub const fn submit_first() -> ProtocolFlags {
+            pub const fn u64() -> ProtocolFlags {
                 #[cfg(not(feature = "flags"))]
                 {
-                    FLAGS_MASK_VIA_LEN | 0 | FLAGS_MASK_HASH_I128
+                    FLAGS_MASK_VIA_U8S | 0 | FLAGS_MASK_HASH_U64
                 }
                 #[cfg(feature = "flags")]
                 ProtocolFlags {
-                    signal_via: SignalVia::Len,
+                    signal_via: SignalVia::U8s,
+                    hash_via: HashViaInternal::U64,
+                    signal_first: false,
+                }
+            }
+
+            /// Flag constructor for protocols that
+            /// - signals with a dedicated u8 slice (via [`core::hash::Hasher::write`])
+            /// - sends hash via [core::hash::Hasher::write_i64]
+            /// - submits the hash before it signals.
+            pub const fn i64() -> ProtocolFlags {
+                #[cfg(not(feature = "flags"))]
+                {
+                    FLAGS_MASK_VIA_U8S | 0 | FLAGS_MASK_HASH_I64
+                }
+                #[cfg(feature = "flags")]
+                ProtocolFlags {
+                    signal_via: SignalVia::U8s,
+                    hash_via: HashViaInternal::I64,
+                    signal_first: false,
+                }
+            }
+
+            /// Flag constructor for protocols that
+            /// - signals with a dedicated u8 slice (via [`core::hash::Hasher::write`])
+            /// - sends hash via [core::hash::Hasher::write_u129]
+            /// - submits the hash before it signals.
+            pub const fn u128() -> ProtocolFlags {
+                #[cfg(not(feature = "flags"))]
+                {
+                    FLAGS_MASK_VIA_U8S | 0 | FLAGS_MASK_HASH_U128
+                }
+                #[cfg(feature = "flags")]
+                ProtocolFlags {
+                    signal_via: SignalVia::U8s,
+                    hash_via: HashViaInternal::U128,
+                    signal_first: false,
+                }
+            }
+
+            /// Flag constructor for protocols that
+            /// - signals with a dedicated u8 slice (via [`core::hash::Hasher::write`])
+            /// - sends hash via [core::hash::Hasher::write_u129]
+            /// - submits the hash before it signals.
+            pub const fn i128() -> ProtocolFlags {
+                #[cfg(not(feature = "flags"))]
+                {
+                    FLAGS_MASK_VIA_U8S | 0 | FLAGS_MASK_HASH_I128
+                }
+                #[cfg(feature = "flags")]
+                ProtocolFlags {
+                    signal_via: SignalVia::U8s,
                     hash_via: HashViaInternal::I128,
                     signal_first: false,
                 }
@@ -766,6 +753,17 @@ impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str::submit_f
 impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str::submit_first::i128() }> {}
 
 const _CHECKS: () = {
+    assert!(is_signal_via_u8s(new::u8s::signal_first::u64()) == true);
+    assert!(is_signal_via_len(new::len::signal_first::i64()) == true);
+    assert!(is_signal_via_len(new::len::signal_first::u128()) == true);
+    assert!(is_signal_via_len(new::len::signal_first::i128()) == true);
+
+    assert!(is_signal_via_len(new::len::submit_first::u64()) == true);
+    assert!(is_signal_via_len(new::len::submit_first::i64()) == true);
+    assert!(is_signal_via_len(new::len::submit_first::u128()) == true);
+    assert!(is_signal_via_len(new::len::submit_first::i128()) == true);
+    // ----
+
     assert!(is_signal_via_len(new::len::signal_first::u64()) == true);
     assert!(is_signal_via_len(new::len::signal_first::i64()) == true);
     assert!(is_signal_via_len(new::len::signal_first::u128()) == true);
