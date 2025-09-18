@@ -54,35 +54,58 @@ chk-hash = []
 # NOT very expensive.
 chk-flow = []
 
-# Using Mutex and its data_ptr function to get signalling string slices. It requires "std" library.
-# It involves trivial unsafe code, used only for creation of static signalling string
-# slices/pointers.
+# Using Mutex and its data_ptr function to get signalling slices. It requires "std" library. It
+# involves trivial unsafe code, used only for creation of static signalling string slices/pointers.
+# This enables
+# - "u8 slice"-based signalling, protocol flags in flags::new::u8s
+# - "str" signalling, protocol flags in flags::new::str - if "hpe" feature is enabled, too. That
+#   requires nightly.
 mx = []
 
+# Using Rust feature "hasher_prefixfree_extras": https://github.com/rust-lang/rust/issues/96762.
+# This enables
+# - "prefix length"-based signalling, protocol flags in flags::new::len
+# - "str" signalling, protocol flags in flags::new::str - if "mx" feature is enabled, too.
+#
+# Both require nightly.
+hpe = []
 
 # Some combinations of features. Do leave trailing spaces on empty lines, for up & down navigation.
 #                                                           
 #           Logic/          |         Checks:
 #           functionality:  |
 #                           | Cheap:      Expensive:
-#default = [                                               ]
-#default = [                  "chk-flow"                   ]
-#default = [                              "chk-hash"       ]
-#default = [                                          "chk"]
-#default = [                  "chk-flow", "chk-hash", "chk"]
-#default = [         "flags"                               ]
-#default = [         "flags", "chk-flow"                   ]
-#default = [         "flags",             "chk-hash"       ]
-#default = [         "flags",                         "chk"]
-#default = [         "flags", "chk-flow", "chk-hash", "chk"]
+#default = [                                                     ]
+#default = [                        "chk-flow"                   ]
+#default = [                                    "chk-hash"       ]
+#default = [                                                "chk"]
+#default = [                        "chk-flow", "chk-hash", "chk"]
+#default = [               "flags"                               ]
+#default = [               "flags", "chk-flow"                   ]
+#default = [               "flags",             "chk-hash"       ]
+#default = [               "flags",                         "chk"]
+#default = [               "flags", "chk-flow", "chk-hash", "chk"]
 #                                                           
 #default = [  "mx"                                         ]
-#default = [  "mx",           "chk-flow"                   ]
-#default = [  "mx",                       "chk-hash"       ]
-#default = [  "mx",                                   "chk"]
-#default = [  "mx",           "chk-flow", "chk-hash", "chk"]
-#default = [  "mx",  "flags"                               ]
-#default = [  "mx",  "flags", "chk-flow"                   ]
-#default = [  "mx",  "flags",             "chk-hash"       ]
-#default = [  "mx",  "flags",                         "chk"]
- default = [  "mx",  "flags", "chk-flow", "chk-hash", "chk"]
+#default = [  "mx",                 "chk-flow"                   ]
+#default = [  "mx",                             "chk-hash"       ]
+#default = [  "mx",                                         "chk"]
+#
+#default = [  "mx",                 "chk-flow", "chk-hash", "chk"]
+#default = [  "mx",        "flags"                               ]
+#default = [  "mx",        "flags", "chk-flow"                   ]
+#default = [  "mx",        "flags",             "chk-hash"       ]
+#default = [  "mx",        "flags",                         "chk"]
+#
+#default = [        "hpe",          "chk-flow"                   ]
+#default = [        "hpe",                      "chk-hash"       ]
+#default = [        "hpe",                                  "chk"]
+#default = [        "hpe",          "chk-flow", "chk-hash", "chk"]
+#default = [        "hpe", "flags"                               ]
+#default = [        "hpe", "flags", "chk-flow"                   ]
+#default = [        "hpe", "flags",             "chk-hash"       ]
+#default = [        "hpe", "flags",                         "chk"]
+#default = [        "hpe", "flags", "chk-flow", "chk-hash", "chk"]
+#                                                           
+#default = [  "mx", "hpe",          "chk-flow", "chk-hash", "chk"]
+ default = [  "mx", "hpe", "flags", "chk-flow", "chk-hash", "chk"]

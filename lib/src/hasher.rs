@@ -179,6 +179,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
         self.hasher.write_isize(i);
         self.written_ordinary_hash();
     }
+    #[cfg(feature = "hpe")]
     fn write_length_prefix(&mut self, len: usize) {
         // Logical branches/their conditions can get optimized away (const)
         match flags::signal_via(PF) {
@@ -241,6 +242,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
         }
     }
 
+    #[cfg(feature = "hpe")]
     #[inline]
     fn write_str(&mut self, s: &str) {
         match flags::signal_via(PF) {
