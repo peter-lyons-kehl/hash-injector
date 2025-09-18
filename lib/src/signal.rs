@@ -29,6 +29,7 @@ type U8Array = [u8; 3];
 pub static MX: Mutex<U8Array> = hint::black_box(Mutex::new([b'A', b'B', b'C']));
 
 #[cfg(feature = "mx")]
+#[inline(always)]
 fn str_full() -> &'static str {
     let bytes = unsafe { &*MX.data_ptr() as &U8Array };
     let bytes_slice = &bytes[..];
@@ -36,40 +37,49 @@ fn str_full() -> &'static str {
     unsafe { str::from_utf8_unchecked(bytes_slice) }
 }
 #[cfg(feature = "mx")]
+#[inline(always)]
 pub fn str_signal_hash() -> &'static str {
     unsafe { str_full().get_unchecked(0..1) }
 }
 #[cfg(all(feature = "mx", feature = "chk-flow"))]
+#[inline(always)]
 pub fn str_signal_check_flow_is_submit_first() -> &'static str {
     unsafe { str_full().get_unchecked(1..2) }
 }
 #[cfg(all(feature = "mx", feature = "chk-flow"))]
+#[inline(always)]
 pub fn str_signal_check_flow_is_signal_first() -> &'static str {
     unsafe { str_full().get_unchecked(2..3) }
 }
 
 #[cfg(feature = "mx")]
+#[inline(always)]
 pub fn u8s_signal_hash() -> &'static [u8] {
     str_signal_hash().as_bytes()
 }
 #[cfg(all(feature = "mx", feature = "chk-flow"))]
+#[inline(always)]
 pub fn u8s_signal_check_flow_is_submit_first() -> &'static [u8] {
     str_signal_check_flow_is_submit_first().as_bytes()
 }
 #[cfg(all(feature = "mx", feature = "chk-flow"))]
+#[inline(always)]
 pub fn u8s_signal_check_flow_is_signal_first() -> &'static [u8] {
     str_signal_check_flow_is_signal_first().as_bytes()
 }
 
 #[cfg(feature = "mx")]
+#[inline(always)]
 pub fn ptr_signal_hash() -> *const u8 {
     MX.data_ptr() as *const u8
 }
 #[cfg(all(feature = "mx", feature = "chk-flow"))]
+#[inline(always)]
 pub fn ptr_signal_check_flow_is_submit_first() -> *const u8 {
     unsafe { ptr_signal_hash().add(1) }
 }
 #[cfg(all(feature = "mx", feature = "chk-flow"))]
+#[inline(always)]
 pub fn ptr_signal_check_flow_is_signal_first() -> *const u8 {
     unsafe { ptr_signal_hash().add(2) }
 }
@@ -174,7 +184,6 @@ _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,*/
                     hasher.write(u8s_signal_check_flow_is_signal_first());
                     #[cfg(not(feature = "mx"))]
                     unreachable!()
-
                 }
                 SignalVia::Len => {
                     #[cfg(all(feature = "mx", feature = "hpe"))]

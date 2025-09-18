@@ -14,6 +14,41 @@ pub struct SignalledInjectionHasher<H: Hasher, const PF: ProtocolFlags> {
     hasher: H,
     state: SignalState,
 }
+struct PossiblySubmitResult {
+    must_write_data_afterwards: bool,
+    #[cfg(debug_assertions)]
+    consumed: bool,
+}
+impl PossiblySubmitResult {
+    const fn new(must_write_data_afterwards: bool) -> Self {
+        Self {
+            must_write_data_afterwards,
+            #[cfg(debug_assertions)]
+            consumed: false,
+        }
+    }
+    /// Whether the client needs to call hasher.write_XXX(i) afterwards. The caller does NOT need to
+    /// do anything else. In particular, the caller
+    /// - does NOT need to perform any checks (if enabled with cargo features) - those have already
+    ///   been done.
+    /// - MUST NOT set/modify the state - because in some cases the new state varies. The state has
+    ///   already been set/modified by [SignalledInjectionHasher::possibly_submit].
+    #[must_use]
+    #[inline(always)]
+    fn must_write_data_afterwards(mut self) -> bool {
+        #[cfg(debug_assertions)]
+        {
+            self.consumed = true;
+        }
+        self.must_write_data_afterwards
+    }
+}
+#[cfg(debug_assertions)]
+impl Drop for PossiblySubmitResult {
+    fn drop(&mut self) {
+        debug_assert!(self.consumed);
+    }
+}
 impl<H: Hasher, const PF: ProtocolFlags> SignalledInjectionHasher<H, PF> {
     #[inline]
     const fn new(hasher: H) -> Self {
@@ -27,36 +62,52 @@ impl<H: Hasher, const PF: ProtocolFlags> SignalledInjectionHasher<H, PF> {
     fn written_ordinary_hash(&mut self) {
         self.state.set_written_ordinary_hash();
     }
-    // @TODO if this doesn't optimize away in release, replace with a macro.
-    #[inline(always)]
-    fn assert_nothing_written(&self) {
-        #[cfg(feature = "chk")]
-        assert!(self.state.is_nothing_written());
-    }
-    // @TODO if this doesn't optimize away in release, replace with a macro.
-    #[inline(always)]
-    fn assert_nothing_written_or_ordinary_hash(&self) {
-        #[cfg(feature = "chk")]
-        assert!(
-            self.state.is_nothing_written_or_ordinary_hash(),
-            "Expecting the state to be NothingWritten or WrittenOrdinaryHash, but the state was: {:?}",
+    /// Submit, or possibly submit, hash `i`, as appropriate per the state and the flow.
+    ///
+    /// The caller MUSt use the result and depending on its
+    /// [PossiblySubmitResult::must_write_data_afterwards] it must write the given data using the
+    /// ordinary `Hasher::write_XXX`. That is somewhat enforced with `#![forbid(unused_must_use)]`
+    /// at `src/lib.rs``.
+    ///
+    /// We do not use a function pointer to call back to write the given data, because the caller's
+    /// actual data may also be a `i64, u128, i128`.
+    #[must_use]
+    fn possibly_submit(&mut self, i: u64) -> PossiblySubmitResult {
+        // the outer if check can get optimized away (const)
+        if flags::is_hash_via_u64(PF) {
+            if flags::is_signal_first(PF) {
+                if self.state.is_signalled_proposal_coming(PF) {
+                    self.state = SignalState::new_hash_received(i);
+                    PossiblySubmitResult::new(false)
+                } else {
+                    self.state.assert_nothing_written_or_ordinary_hash();
+                    self.written_ordinary_hash();
+                    PossiblySubmitResult::new(true)
+                }
+            } else {
+                self.state
+                    .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
+
+                if self.state.is_nothing_written() {
+                    self.state = SignalState::new_hash_possibly_submitted(i, PF);
+                } else {
+                    // In case the hash was "possibly_submitted", submitting any more data (u64 or
+                    // otherwise) invalidates it.
+                    self.state.set_written_ordinary_hash();
+                }
+                // Even if we are indeed signalling, after this function returns the client would
+                // call  write_XXX(...). The value then written to the underlying Hasher will NOT be
+                // used, because finish(&self) then returns the injected hash - instead of calling
+                // the underlying Hasher's finish(). So, the compiler may optimize the following
+                // call away (thanks to Hasher objects being passed by generic reference - instead
+                // of a &dyn trait reference):
+                PossiblySubmitResult::new(true)
+            }
+        } else {
             self.state
-        );
-    }
-    // @TODO if this doesn't optimize away in release, replace with a macro.
-    /// Assert that
-    /// - no hash has been signalled (if we do signal first - before submitting), and
-    /// - no hash has been received (regardless of whether we signal first, or submit first).
-    #[inline(always)]
-    fn assert_nothing_written_or_ordinary_hash_or_possibly_submitted(&self) {
-        #[cfg(feature = "chk")]
-        {
-            assert!(
-                self.state
-                    .is_nothing_written_or_ordinary_hash_or_possibly_submitted(PF),
-                "Expecting the state to be NothingWritten or WrittenOrdinaryHash, or HashPossiblySubmitted (if applicable), but the state was: {:?}",
-                self.state
-            );
+                .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
+            self.written_ordinary_hash();
+            PossiblySubmitResult::new(true)
         }
     }
 }
@@ -66,7 +117,8 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
         if self.state.is_hash_received() {
             self.state.hash
         } else {
-            self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+            self.state
+                .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
             self.hasher.finish()
         }
     }
@@ -74,7 +126,8 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
     /// through `write_length_prefix` and `write_u64` when signalling.
     #[inline]
     fn write(&mut self, bytes: &[u8]) {
-        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+        self.state
+            .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
         self.hasher.write(bytes);
         self.written_ordinary_hash();
         todo!()
@@ -82,104 +135,123 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
 
     #[inline]
     fn write_u8(&mut self, i: u8) {
-        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+        self.state
+            .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
         self.hasher.write_u8(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_u16(&mut self, i: u16) {
-        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+        self.state
+            .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
         self.hasher.write_u16(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_u32(&mut self, i: u32) {
-        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+        self.state
+            .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
         self.hasher.write_u32(i);
         self.written_ordinary_hash();
     }
     fn write_u64(&mut self, i: u64) {
-        // the outer if check can get optimized away (const)
-        if flags::is_hash_via_u64(PF) {
-            if flags::is_signal_first(PF) {
-                if self.state.is_signalled_proposal_coming(PF) {
-                    self.state = SignalState::new_hash_received(i);
+        if self.possibly_submit(i).must_write_data_afterwards() {
+            self.hasher.write_u64(i);
+        }
+        if false {
+            // @TODO remove
+            // the outer if check can get optimized away (const)
+            if flags::is_hash_via_u64(PF) {
+                if flags::is_signal_first(PF) {
+                    if self.state.is_signalled_proposal_coming(PF) {
+                        self.state = SignalState::new_hash_received(i);
+                    } else {
+                        self.state.assert_nothing_written_or_ordinary_hash();
+                        self.hasher.write_u64(i);
+                        self.written_ordinary_hash();
+                    }
                 } else {
-                    self.assert_nothing_written_or_ordinary_hash();
+                    self.state
+                        .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
+                    // If we are indeed signalling, then after the following write_u64(...) the value
+                    // written to the underlying Hasher will NOT be used, because finish(&self) then
+                    // returns the injected hash - instead of calling the underlying Hasher's finish().
+                    // So, the compiler MAY optimize the following call away (thanks to Hasher objects
+                    // being passed by generic reference - instead of a &dyn trait reference):
                     self.hasher.write_u64(i);
-                    self.written_ordinary_hash();
+
+                    if self.state.is_nothing_written() {
+                        self.state = SignalState::new_hash_possibly_submitted(i, PF);
+                    } else {
+                        // In case the hash was "possibly_submitted", submitting any more data (u64 or
+                        // otherwise) invalidates it.
+                        self.state.set_written_ordinary_hash();
+                    }
                 }
             } else {
-                self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
-                // If we are indeed signalling, then after the following write_u64(...) the value
-                // written to the underlying Hasher will NOT be used, because finish(&self) then
-                // returns the injected hash - instead of calling the underlying Hasher's finish().
-                // So, the compiler MAY optimize the following call away (thanks to Hasher objects
-                // being passed by generic reference - instead of a &dyn trait reference):
+                self.state
+                    .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
                 self.hasher.write_u64(i);
-
-                if self.state.is_nothing_written() {
-                    self.state = SignalState::new_hash_possibly_submitted(i, PF);
-                } else {
-                    // In case the hash was "possibly_submitted", submitting any more data (u64 or
-                    // otherwise) invalidates it.
-                    self.state.set_written_ordinary_hash();
-                }
+                self.written_ordinary_hash();
             }
-        } else {
-            self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
-            self.hasher.write_u64(i);
-            self.written_ordinary_hash();
         }
     }
     #[inline]
     fn write_u128(&mut self, i: u128) {
-        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+        self.state
+            .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
         self.hasher.write_u128(i);
         self.written_ordinary_hash();
         todo!()
     }
     #[inline]
     fn write_usize(&mut self, i: usize) {
-        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+        self.state
+            .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
         self.hasher.write_usize(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_i8(&mut self, i: i8) {
-        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+        self.state
+            .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
         self.hasher.write_i8(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_i16(&mut self, i: i16) {
-        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+        self.state
+            .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
         self.hasher.write_i16(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_i32(&mut self, i: i32) {
-        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+        self.state
+            .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
         self.hasher.write_i32(i);
         self.written_ordinary_hash();
     }
     #[inline]
     fn write_i64(&mut self, i: i64) {
-        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+        self.state
+            .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
         self.hasher.write_i64(i);
         self.written_ordinary_hash();
         todo!()
     }
     #[inline]
     fn write_i128(&mut self, i: i128) {
-        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+        self.state
+            .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
         self.hasher.write_i128(i);
         self.written_ordinary_hash();
         todo!()
     }
     #[inline]
     fn write_isize(&mut self, i: isize) {
-        self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+        self.state
+            .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
         self.hasher.write_isize(i);
         self.written_ordinary_hash();
     }
@@ -188,7 +260,8 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
         // Logical branches/their conditions can get optimized away (const)
         match flags::signal_via(PF) {
             SignalVia::U8s | SignalVia::Str => {
-                self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+                self.state
+                    .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
                 self.hasher.write_length_prefix(len);
                 self.written_ordinary_hash();
             }
@@ -218,14 +291,15 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                                 assert_ne!(len, LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST);
                             }
 
-                            self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+                            self.state
+                                .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
                             self.hasher.write_length_prefix(len);
                             self.written_ordinary_hash();
                         }
                     }
                     Flow::SignalFirst => {
                         if len == LEN_SIGNAL_HASH {
-                            self.assert_nothing_written();
+                            self.state.assert_nothing_written();
                             self.state.set_signalled_proposal_coming(PF);
                         } else {
                             #[cfg(feature = "chk-flow")]
@@ -236,7 +310,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                                 assert_ne!(len, LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST);
                             }
 
-                            self.assert_nothing_written_or_ordinary_hash();
+                            self.state.assert_nothing_written_or_ordinary_hash();
                             self.hasher.write_length_prefix(len);
                             self.written_ordinary_hash();
                         }
@@ -251,7 +325,8 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
     fn write_str(&mut self, s: &str) {
         match flags::signal_via(PF) {
             SignalVia::U8s | SignalVia::Len => {
-                self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+                self.state
+                    .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
                 self.hasher.write_str(s);
                 self.written_ordinary_hash();
             }
@@ -288,13 +363,15 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                                 ));
                             }
 
-                            self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+                            self.state
+                                .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
                             self.hasher.write_str(s);
                             self.written_ordinary_hash();
                         }
                         #[cfg(not(feature = "mx"))]
                         {
-                            self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+                            self.state
+                                .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
                             self.hasher.write_str(s);
                             self.written_ordinary_hash();
                         }
@@ -302,7 +379,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                     Flow::SignalFirst => {
                         #[cfg(feature = "mx")]
                         if ptr::eq(s.as_ptr(), signal::ptr_signal_hash()) {
-                            self.assert_nothing_written();
+                            self.state.assert_nothing_written();
                             self.state.set_signalled_proposal_coming(PF);
                         } else {
                             #[cfg(feature = "chk-flow")]
@@ -319,13 +396,14 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                                 ));
                             }
 
-                            self.assert_nothing_written_or_ordinary_hash();
+                            self.state.assert_nothing_written_or_ordinary_hash();
                             self.hasher.write_str(s);
                             self.written_ordinary_hash();
                         }
                         #[cfg(not(feature = "mx"))]
                         {
-                            self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+                            self.state
+                                .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
                             self.hasher.write_str(s);
                             self.written_ordinary_hash();
                         }

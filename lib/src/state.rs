@@ -165,6 +165,38 @@ impl SignalState {
     pub const fn is_hash_received(&self) -> bool {
         matches!(self.kind, SignalStateKindImpl::HashReceived)
     }
+
+    #[inline(always)]
+    pub const fn assert_nothing_written(&self) {
+        #[cfg(feature = "chk")]
+        assert!(self.is_nothing_written());
+    }
+    #[inline(always)]
+    pub fn assert_nothing_written_or_ordinary_hash(&self) {
+        #[cfg(feature = "chk")]
+        assert!(
+            self.is_nothing_written_or_ordinary_hash(),
+            "Expecting the state to be NothingWritten or WrittenOrdinaryHash, but the state was: {:?}",
+            self
+        );
+    }
+    /// Assert that
+    /// - no hash has been signalled (if we do signal first - before submitting), and
+    /// - no hash has been received (regardless of whether we signal first, or submit first).
+    #[inline(always)]
+    pub fn assert_nothing_written_or_ordinary_hash_or_possibly_submitted(
+        &self,
+        #[allow(non_snake_case)] PF: ProtocolFlags,
+    ) {
+        #[cfg(feature = "chk")]
+        {
+            assert!(
+                self.is_nothing_written_or_ordinary_hash_or_possibly_submitted(PF),
+                "Expecting the state to be NothingWritten or WrittenOrdinaryHash, or HashPossiblySubmitted (if applicable), but the state was: {:?}",
+                self
+            );
+        }
+    }
 }
 
 const _VERIFY: () = {

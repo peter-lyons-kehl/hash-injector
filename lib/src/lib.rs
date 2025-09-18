@@ -4,6 +4,7 @@
 #![cfg_attr(feature = "mx", feature(mutex_data_ptr))] // https://github.com/rust-lang/rust/issues/140368
 #![cfg_attr(feature = "hpe", feature(hasher_prefixfree_extras))] //  https://github.com/rust-lang/rust/issues/96762
 #![cfg_attr(feature = "flags", feature(adt_const_params))]
+#![forbid(unused_must_use)]
 
 pub use flags::{
     //_ProtocolFlagsSignalledViaLen, _ProtocolFlagsSignalledViaStr, _ProtocolFlagsSubset,
