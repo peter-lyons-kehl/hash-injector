@@ -745,86 +745,91 @@ pub mod new {
 pub trait _ProtocolFlagsSignalledViaLen {}
 pub struct _ProtocolFlagsSubset<const PF: ProtocolFlags>;
 impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new::len::signal_first::u64() }> {}
-impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new::len::submit_first::u64() }> {}
 impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new::len::signal_first::i64() }> {}
-impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new::len::submit_first::i64() }> {}
-
 impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new::len::signal_first::u128() }> {}
-impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new::len::submit_first::u128() }> {}
 impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new::len::signal_first::i128() }> {}
+
+impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new::len::submit_first::u64() }> {}
+impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new::len::submit_first::i64() }> {}
+impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new::len::submit_first::u128() }> {}
 impl _ProtocolFlagsSignalledViaLen for _ProtocolFlagsSubset<{ new::len::submit_first::i128() }> {}
 
 pub trait _ProtocolFlagsSignalledViaStr {}
 impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str::signal_first::u64() }> {}
-impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str::submit_first::u64() }> {}
 impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str::signal_first::i64() }> {}
-impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str::submit_first::i64() }> {}
-
 impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str::signal_first::u128() }> {}
-impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str::submit_first::u128() }> {}
 impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str::signal_first::i128() }> {}
+
+impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str::submit_first::u64() }> {}
+impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str::submit_first::i64() }> {}
+impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str::submit_first::u128() }> {}
 impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str::submit_first::i128() }> {}
 
 const _CHECKS: () = {
     assert!(is_signal_via_len(new::len::signal_first::u64()) == true);
-    assert!(is_signal_via_len(new::len::submit_first::u64()) == true);
     assert!(is_signal_via_len(new::len::signal_first::i64()) == true);
-    assert!(is_signal_via_len(new::len::submit_first::i64()) == true);
-
     assert!(is_signal_via_len(new::len::signal_first::u128()) == true);
-    assert!(is_signal_via_len(new::len::submit_first::u128()) == true);
     assert!(is_signal_via_len(new::len::signal_first::i128()) == true);
+
+    assert!(is_signal_via_len(new::len::submit_first::u64()) == true);
+    assert!(is_signal_via_len(new::len::submit_first::i64()) == true);
+    assert!(is_signal_via_len(new::len::submit_first::u128()) == true);
     assert!(is_signal_via_len(new::len::submit_first::i128()) == true);
+    // ----
 
     assert!(is_signal_via_str(new::str::signal_first::u64()) == true);
-    assert!(is_signal_via_str(new::str::submit_first::u64()) == true);
     assert!(is_signal_via_str(new::str::signal_first::i64()) == true);
-    assert!(is_signal_via_str(new::str::submit_first::i64()) == true);
-
     assert!(is_signal_via_str(new::str::signal_first::u128()) == true);
-    assert!(is_signal_via_str(new::str::submit_first::u128()) == true);
     assert!(is_signal_via_str(new::str::signal_first::i128()) == true);
+
+    assert!(is_signal_via_str(new::str::submit_first::u64()) == true);
+    assert!(is_signal_via_str(new::str::submit_first::i64()) == true);
+    assert!(is_signal_via_str(new::str::submit_first::u128()) == true);
     assert!(is_signal_via_str(new::str::submit_first::i128()) == true);
+    // ----
     // ----
 
     assert!(is_signal_first(new::len::signal_first::u64()) == true);
-    assert!(is_submit_first(new::len::submit_first::u64()) == true);
     assert!(is_signal_first(new::len::signal_first::i64()) == true);
-    assert!(is_submit_first(new::len::submit_first::i64()) == true);
-
     assert!(is_signal_first(new::len::signal_first::u128()) == true);
-    assert!(is_submit_first(new::len::submit_first::u128()) == true);
     assert!(is_signal_first(new::len::signal_first::i128()) == true);
+    // ----
+
+    assert!(is_submit_first(new::len::submit_first::u64()) == true);
+    assert!(is_submit_first(new::len::submit_first::i64()) == true);
+    assert!(is_submit_first(new::len::submit_first::u128()) == true);
     assert!(is_submit_first(new::len::submit_first::i128()) == true);
+    // ----
 
     assert!(is_signal_first(new::str::signal_first::u64()) == true);
-    assert!(is_submit_first(new::str::submit_first::u64()) == true);
     assert!(is_signal_first(new::str::signal_first::i64()) == true);
-    assert!(is_submit_first(new::str::submit_first::i64()) == true);
-
     assert!(is_signal_first(new::str::signal_first::u128()) == true);
-    assert!(is_submit_first(new::str::submit_first::u128()) == true);
     assert!(is_signal_first(new::str::signal_first::i128()) == true);
+    // ----
+    assert!(is_submit_first(new::str::submit_first::u64()) == true);
+    assert!(is_submit_first(new::str::submit_first::i64()) == true);
+    assert!(is_submit_first(new::str::submit_first::u128()) == true);
     assert!(is_submit_first(new::str::submit_first::i128()) == true);
+    // ----
     // ----
 
     assert!(is_hash_via_u64(new::len::signal_first::u64()) == true);
-    assert!(is_hash_via_u64(new::len::submit_first::u64()) == true);
     assert!(is_hash_via_i64(new::len::signal_first::i64()) == true);
-    assert!(is_hash_via_i64(new::len::submit_first::i64()) == true);
-
     assert!(is_hash_via_u128(new::len::signal_first::u128()) == true);
-    assert!(is_hash_via_u128(new::len::submit_first::u128()) == true);
     assert!(is_hash_via_i128(new::len::signal_first::i128()) == true);
+
+    assert!(is_hash_via_u64(new::len::submit_first::u64()) == true);
+    assert!(is_hash_via_i64(new::len::submit_first::i64()) == true);
+    assert!(is_hash_via_u128(new::len::submit_first::u128()) == true);
     assert!(is_hash_via_i128(new::len::submit_first::i128()) == true);
 
     assert!(is_hash_via_u64(new::str::signal_first::u64()) == true);
-    assert!(is_hash_via_u64(new::str::submit_first::u64()) == true);
-    assert!(is_hash_via_i64(new::str::signal_first::i64()) == true);
-    assert!(is_hash_via_i64(new::str::submit_first::i64()) == true);
-
     assert!(is_hash_via_u128(new::str::signal_first::u128()) == true);
-    assert!(is_hash_via_u128(new::str::submit_first::u128()) == true);
+    assert!(is_hash_via_i64(new::str::signal_first::i64()) == true);
     assert!(is_hash_via_i128(new::str::signal_first::i128()) == true);
+
+    assert!(is_hash_via_u64(new::str::submit_first::u64()) == true);
+    assert!(is_hash_via_i64(new::str::submit_first::i64()) == true);
+    assert!(is_hash_via_u128(new::str::submit_first::u128()) == true);
     assert!(is_hash_via_i128(new::str::submit_first::i128()) == true);
 };
