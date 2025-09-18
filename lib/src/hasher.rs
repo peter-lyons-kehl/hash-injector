@@ -123,11 +123,94 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
     /// through `write_length_prefix` and `write_u64` when signalling.
     #[inline]
     fn write(&mut self, bytes: &[u8]) {
-        self.state
-            .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
-        self.hasher.write(bytes);
-        self.written_ordinary_hash();
-        todo!()
+        match flags::signal_via(PF) {
+            SignalVia::Len | SignalVia::Str => {
+                self.state
+                    .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
+                self.hasher.write(bytes);
+                self.written_ordinary_hash();
+            }
+            SignalVia::U8s => {
+                match flags::flow(PF) {
+                    Flow::SubmitFirst => {
+                        #[cfg(feature = "mx")]
+                        if ptr::eq(bytes.as_ptr(), signal::ptr_signal_hash()) {
+                            if self.state.is_hash_possibly_submitted(PF) {
+                                self.state.set_hash_received();
+                            } else {
+                                #[cfg(feature = "chk")]
+                                assert!(
+                                    false,
+                                    "Expected state HashPossiblySubmitted, but it was {:?}.",
+                                    self.state
+                                );
+
+                                self.hasher.write(bytes);
+                                self.written_ordinary_hash();
+                            }
+                        } else {
+                            #[cfg(feature = "chk-flow")]
+                            {
+                                if ptr::eq(
+                                    bytes.as_ptr(),
+                                    signal::ptr_signal_check_flow_is_submit_first(),
+                                ) {
+                                    return; // just being checked (no data to write)
+                                }
+                                assert!(!ptr::eq(
+                                    bytes.as_ptr(),
+                                    signal::ptr_signal_check_flow_is_signal_first()
+                                ));
+                            }
+
+                            self.state
+                                .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
+                            self.hasher.write(bytes);
+                            self.written_ordinary_hash();
+                        }
+                        #[cfg(not(feature = "mx"))]
+                        {
+                            self.state
+                                .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
+                            self.hasher.write(bytes);
+                            self.written_ordinary_hash();
+                        }
+                    }
+                    Flow::SignalFirst => {
+                        #[cfg(feature = "mx")]
+                        if ptr::eq(bytes.as_ptr(), signal::ptr_signal_hash()) {
+                            self.state.assert_nothing_written();
+                            self.state.set_signalled_proposal_coming(PF);
+                        } else {
+                            #[cfg(feature = "chk-flow")]
+                            {
+                                if ptr::eq(
+                                    bytes.as_ptr(),
+                                    signal::ptr_signal_check_flow_is_signal_first(),
+                                ) {
+                                    return; // just being checked (no data to write)
+                                }
+                                assert!(!ptr::eq(
+                                    bytes.as_ptr(),
+                                    signal::ptr_signal_check_flow_is_submit_first()
+                                ));
+                            }
+
+                            self.state.assert_nothing_written_or_ordinary_hash();
+                            self.hasher.write(bytes);
+                            self.written_ordinary_hash();
+                        }
+                        #[cfg(not(feature = "mx"))]
+                        {
+                            self.state
+                                .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
+                            self.hasher.write(bytes);
+                            self.written_ordinary_hash();
+                        }
+                    }
+                }
+            }
+        }
     }
 
     #[inline]
@@ -165,11 +248,16 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
     }
     #[inline]
     fn write_u128(&mut self, i: u128) {
-        self.state
-            .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
-        self.hasher.write_u128(i);
-        self.written_ordinary_hash();
-        todo!()
+        if flags::is_hash_via_u128(PF) {
+            if self.possibly_submit(i as u64).must_write_data_afterwards() {
+                self.hasher.write_u128(i);
+            }
+        } else {
+            self.state
+                .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
+            self.hasher.write_u128(i);
+            self.written_ordinary_hash();
+        }
     }
     #[inline]
     fn write_usize(&mut self, i: usize) {
@@ -201,19 +289,29 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
     }
     #[inline]
     fn write_i64(&mut self, i: i64) {
-        self.state
-            .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
-        self.hasher.write_i64(i);
-        self.written_ordinary_hash();
-        todo!()
+        if flags::is_hash_via_i64(PF) {
+            if self.possibly_submit(i as u64).must_write_data_afterwards() {
+                self.hasher.write_i64(i);
+            }
+        } else {
+            self.state
+                .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
+            self.hasher.write_i64(i);
+            self.written_ordinary_hash();
+        }
     }
     #[inline]
     fn write_i128(&mut self, i: i128) {
-        self.state
-            .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
-        self.hasher.write_i128(i);
-        self.written_ordinary_hash();
-        todo!()
+        if flags::is_hash_via_i128(PF) {
+            if self.possibly_submit(i as u64).must_write_data_afterwards() {
+                self.hasher.write_i128(i);
+            }
+        } else {
+            self.state
+                .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
+            self.hasher.write_i128(i);
+            self.written_ordinary_hash();
+        }
     }
     #[inline]
     fn write_isize(&mut self, i: isize) {
