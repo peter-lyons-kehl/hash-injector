@@ -178,7 +178,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
     fn write_length_prefix(&mut self, len: usize) {
         // Logical branches/their conditions can get optimized away (const)
         match flags::signal_via(PF) {
-            SignalVia::Str => {
+            SignalVia::U8s | SignalVia::Str => {
                 self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
                 self.hasher.write_length_prefix(len);
                 self.written_ordinary_hash();
@@ -240,7 +240,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
     #[inline]
     fn write_str(&mut self, s: &str) {
         match flags::signal_via(PF) {
-            SignalVia::Len => {
+            SignalVia::U8s | SignalVia::Len => {
                 self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
                 self.hasher.write_str(s);
                 self.written_ordinary_hash();

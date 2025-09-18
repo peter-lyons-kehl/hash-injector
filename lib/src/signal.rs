@@ -64,6 +64,7 @@ pub fn ptr_signal_check_flow_is_signal_first() -> *const u8 {
 #[inline(always)]
 fn signal<H: Hasher>(#[allow(non_snake_case)] PF: ProtocolFlags, hasher: &mut H) {
     match flags::signal_via(PF) {
+        SignalVia::U8s => todo!(),
         SignalVia::Len => hasher.write_length_prefix(LEN_SIGNAL_HASH),
         SignalVia::Str =>
         {
@@ -115,6 +116,7 @@ where
     match flags::flow(PF) {
         Flow::SubmitFirst => {
             match flags::signal_via(PF) {
+                SignalVia::U8s => todo!(),
                 SignalVia::Len => hasher.write_length_prefix(LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST),
                 SignalVia::Str =>
                 {
@@ -125,6 +127,7 @@ where
         }
         Flow::SignalFirst => {
             match flags::signal_via(PF) {
+                SignalVia::U8s => todo!(),
                 SignalVia::Len => hasher.write_length_prefix(LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST),
                 SignalVia::Str =>
                 {
