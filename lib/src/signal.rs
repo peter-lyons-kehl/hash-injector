@@ -85,23 +85,23 @@ pub fn ptr_signal_check_flow_is_signal_first() -> *const u8 {
 }
 
 #[inline(always)]
-fn signal<H: Hasher>(#[allow(non_snake_case)] PF: ProtocolFlags, hasher: &mut H) {
+fn signal<H: Hasher>(#[allow(non_snake_case)] PF: ProtocolFlags, _hasher: &mut H) {
     match flags::signal_via(PF) {
         SignalVia::U8s => {
             #[cfg(feature = "mx")]
-            hasher.write(u8s_signal_hash());
+            _hasher.write(u8s_signal_hash());
             #[cfg(not(feature = "mx"))]
             unreachable!()
         }
         SignalVia::Len => {
             #[cfg(feature = "hpe")]
-            hasher.write_length_prefix(LEN_SIGNAL_HASH);
+            _hasher.write_length_prefix(LEN_SIGNAL_HASH);
             #[cfg(not(feature = "hpe"))]
             unreachable!()
         }
         SignalVia::Str => {
             #[cfg(all(feature = "mx", feature = "hpe"))]
-            hasher.write_str(str_signal_hash());
+            _hasher.write_str(str_signal_hash());
             #[cfg(not(all(feature = "mx", feature = "hpe")))]
             unreachable!()
         }
@@ -164,15 +164,15 @@ _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,*/
                 }
 
                 SignalVia::Len => {
-                    #[cfg(all(feature = "mx", feature = "hpe"))]
+                    #[cfg(feature = "hpe")]
                     hasher.write_length_prefix(LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST);
-                    #[cfg(not(all(feature = "mx", feature = "hpe")))]
+                    #[cfg(not(feature = "hpe"))]
                     unreachable!()
                 }
                 SignalVia::Str => {
-                    #[cfg(feature = "mx")]
+                    #[cfg(all(feature = "mx", feature = "hpe"))]
                     hasher.write_str(str_signal_check_flow_is_submit_first());
-                    #[cfg(not(feature = "mx"))]
+                    #[cfg(not(all(feature = "mx", feature = "hpe")))]
                     unreachable!()
                 }
             };
@@ -186,15 +186,15 @@ _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,*/
                     unreachable!()
                 }
                 SignalVia::Len => {
-                    #[cfg(all(feature = "mx", feature = "hpe"))]
+                    #[cfg(feature = "hpe")]
                     hasher.write_length_prefix(LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST);
-                    #[cfg(not(all(feature = "mx", feature = "hpe")))]
+                    #[cfg(not(feature = "hpe"))]
                     unreachable!()
                 }
                 SignalVia::Str => {
-                    #[cfg(feature = "mx")]
+                    #[cfg(all(feature = "mx", feature = "hpe"))]
                     hasher.write_str(str_signal_check_flow_is_signal_first());
-                    #[cfg(not(feature = "mx"))]
+                    #[cfg(not(all(feature = "mx", feature = "hpe")))]
                     unreachable!()
                 }
             };

@@ -186,12 +186,12 @@ impl SignalState {
     #[inline(always)]
     pub fn assert_nothing_written_or_ordinary_hash_or_possibly_submitted(
         &self,
-        #[allow(non_snake_case)] PF: ProtocolFlags,
+        #[allow(non_snake_case)] _PF: ProtocolFlags,
     ) {
         #[cfg(feature = "chk")]
         {
             assert!(
-                self.is_nothing_written_or_ordinary_hash_or_possibly_submitted(PF),
+                self.is_nothing_written_or_ordinary_hash_or_possibly_submitted(_PF),
                 "Expecting the state to be NothingWritten or WrittenOrdinaryHash, or HashPossiblySubmitted (if applicable), but the state was: {:?}",
                 self
             );
@@ -207,13 +207,88 @@ const _CHECKS: () = {
     {
         let mut ordinary_zero_hash = SignalState::new_nothing_written();
         ordinary_zero_hash.set_written_ordinary_hash();
-        if !matches!(
+        assert!(matches!(
             ordinary_zero_hash.kind,
             SignalStateKind::WrittenOrdinaryHash
-        ) {
-            panic!();
+        ));
+    }
+
+    const SXXXXX_FIRST_FLAGS_LEN: usize = if cfg!(feature = "hpe") {
+        4 // hpe and regardless of mx: len signalling
+        + if cfg!(feature = "mx") {
+            8 // hpe and mx: u8s and str signalling
+        } else {
+            0
+        }
+    } else if cfg!(feature = "mx") {
+        4 // no hpe, mx only: u8s signal;ling
+    } else {
+        0
+    };
+    const SIGNAL_FIRST_FLAGS: [ProtocolFlags; SXXXXX_FIRST_FLAGS_LEN] = [
+        #[cfg(feature = "mx")]
+        flags::new::u8s::signal_first::u64(),
+        #[cfg(feature = "mx")]
+        flags::new::u8s::signal_first::i64(),
+        #[cfg(feature = "mx")]
+        flags::new::u8s::signal_first::u128(),
+        #[cfg(feature = "mx")]
+        flags::new::u8s::signal_first::i128(),
+        #[cfg(feature = "hpe")]
+        flags::new::len::signal_first::u64(),
+        #[cfg(feature = "hpe")]
+        flags::new::len::signal_first::i64(),
+        #[cfg(feature = "hpe")]
+        flags::new::len::signal_first::u128(),
+        #[cfg(feature = "hpe")]
+        flags::new::len::signal_first::i128(),
+        #[cfg(all(feature = "mx", feature = "hpe"))]
+        flags::new::str::signal_first::u64(),
+        #[cfg(all(feature = "mx", feature = "hpe"))]
+        flags::new::str::signal_first::i64(),
+        #[cfg(all(feature = "mx", feature = "hpe"))]
+        flags::new::str::signal_first::u128(),
+        #[cfg(all(feature = "mx", feature = "hpe"))]
+        flags::new::str::signal_first::i128(),
+    ];
+    {
+        //for pf in [flags::new::len::signal_first::i128()] {
+        let mut i = 0usize;
+        while i < SXXXXX_FIRST_FLAGS_LEN {
+            let pf = SIGNAL_FIRST_FLAGS[i];
+            assert!(flags::is_signal_first(pf));
+            let mut state = SignalState::new_nothing_written();
+            state.set_signalled_proposal_coming(pf);
+            i += 1;
         }
     }
+
+    const SUBMT_FIRST_FLAGS: [ProtocolFlags; SXXXXX_FIRST_FLAGS_LEN] = [
+        #[cfg(feature = "mx")]
+        flags::new::u8s::submit_first::u64(),
+        #[cfg(feature = "mx")]
+        flags::new::u8s::submit_first::i64(),
+        #[cfg(feature = "mx")]
+        flags::new::u8s::submit_first::u128(),
+        #[cfg(feature = "mx")]
+        flags::new::u8s::submit_first::i128(),
+        #[cfg(feature = "hpe")]
+        flags::new::len::submit_first::u64(),
+        #[cfg(feature = "hpe")]
+        flags::new::len::submit_first::i64(),
+        #[cfg(feature = "hpe")]
+        flags::new::len::submit_first::u128(),
+        #[cfg(feature = "hpe")]
+        flags::new::len::submit_first::i128(),
+        #[cfg(all(feature = "mx", feature = "hpe"))]
+        flags::new::str::submit_first::u64(),
+        #[cfg(all(feature = "mx", feature = "hpe"))]
+        flags::new::str::submit_first::i64(),
+        #[cfg(all(feature = "mx", feature = "hpe"))]
+        flags::new::str::submit_first::u128(),
+        #[cfg(all(feature = "mx", feature = "hpe"))]
+        flags::new::str::submit_first::i128(),
+    ];
 };
 
 #[cfg(test)]
