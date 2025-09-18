@@ -77,6 +77,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
         self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
         self.hasher.write(bytes);
         self.written_ordinary_hash();
+        todo!()
     }
 
     #[inline]
@@ -132,6 +133,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
         self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
         self.hasher.write_u128(i);
         self.written_ordinary_hash();
+        todo!()
     }
     #[inline]
     fn write_usize(&mut self, i: usize) {
@@ -162,12 +164,14 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
         self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
         self.hasher.write_i64(i);
         self.written_ordinary_hash();
+        todo!()
     }
     #[inline]
     fn write_i128(&mut self, i: i128) {
         self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
         self.hasher.write_i128(i);
         self.written_ordinary_hash();
+        todo!()
     }
     #[inline]
     fn write_isize(&mut self, i: isize) {
