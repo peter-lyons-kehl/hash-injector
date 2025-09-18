@@ -100,31 +100,34 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
     }
     fn write_u64(&mut self, i: u64) {
         // the outer if check can get optimized away (const)
-        if flags::is_signal_via_str(PF) {
-            // @TODO
-        }
-        if flags::is_signal_first(PF) {
-            if self.state.is_signalled_proposal_coming(PF) {
-                self.state = SignalState::new_hash_received(i);
-            } else {
-                self.assert_nothing_written_or_ordinary_hash();
-                self.hasher.write_u64(i);
-                self.written_ordinary_hash();
-            }
-        } else {
-            self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
-            // If we are indeed signalling, then after the following write_u64(...) the value
-            // written to the underlying Hasher will NOT be used, because finish(&self) then returns
-            // the injected hash - instead of calling the underlying Hasher's finish(). So, the
-            // compiler MAY optimize the following call away (thanks to Hasher objects being passed
-            // by generic reference - instead of a &dyn trait reference):
-            self.hasher.write_u64(i);
-            if self.state.is_nothing_written() {
-                self.state = SignalState::new_hash_possibly_submitted(i, PF);
-            } else {
-                // In case the hash was "possibly_submitted", submitting any more data (u64 or
-                // otherwise) invalidates it.
-                self.state.set_written_ordinary_hash();
+        match flags::signal_via(PF) {
+            SignalVia::U8s => todo!(),
+            SignalVia::Str => todo!(),
+            SignalVia::Len => {
+                if flags::is_signal_first(PF) {
+                    if self.state.is_signalled_proposal_coming(PF) {
+                        self.state = SignalState::new_hash_received(i);
+                    } else {
+                        self.assert_nothing_written_or_ordinary_hash();
+                        self.hasher.write_u64(i);
+                        self.written_ordinary_hash();
+                    }
+                } else {
+                    self.assert_nothing_written_or_ordinary_hash_or_possibly_submitted();
+                    // If we are indeed signalling, then after the following write_u64(...) the value
+                    // written to the underlying Hasher will NOT be used, because finish(&self) then returns
+                    // the injected hash - instead of calling the underlying Hasher's finish(). So, the
+                    // compiler MAY optimize the following call away (thanks to Hasher objects being passed
+                    // by generic reference - instead of a &dyn trait reference):
+                    self.hasher.write_u64(i);
+                    if self.state.is_nothing_written() {
+                        self.state = SignalState::new_hash_possibly_submitted(i, PF);
+                    } else {
+                        // In case the hash was "possibly_submitted", submitting any more data (u64 or
+                        // otherwise) invalidates it.
+                        self.state.set_written_ordinary_hash();
+                    }
+                }
             }
         }
     }

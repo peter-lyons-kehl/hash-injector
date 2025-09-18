@@ -182,10 +182,14 @@ pub const fn is_hash_via_i128(flags: ProtocolFlags) -> bool {
 }
 
 pub const fn signal_via(flags: ProtocolFlags) -> SignalVia {
-    if is_signal_via_len(flags) {
+    if is_signal_via_u8s(flags) {
+        SignalVia::U8s
+    } else if is_signal_via_len(flags) {
         SignalVia::Len
-    } else {
+    } else if is_signal_via_str(flags) {
         SignalVia::Str
+    } else {
+        unreachable!()
     }
 }
 
@@ -773,19 +777,20 @@ impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str::submit_f
 impl _ProtocolFlagsSignalledViaStr for _ProtocolFlagsSubset<{ new::str::submit_first::i128() }> {}
 */
 const _CHECKS: () = {
+    #[cfg(feature = "mx")]
+    {
+        assert!(is_signal_via_u8s(new::u8s::signal_first::u64()) == true);
+        assert!(is_signal_via_u8s(new::u8s::signal_first::i64()) == true);
+        assert!(is_signal_via_u8s(new::u8s::signal_first::u128()) == true);
+        assert!(is_signal_via_u8s(new::u8s::signal_first::i128()) == true);
+
+        assert!(is_signal_via_u8s(new::u8s::submit_first::u64()) == true);
+        assert!(is_signal_via_u8s(new::u8s::submit_first::i64()) == true);
+        assert!(is_signal_via_u8s(new::u8s::submit_first::u128()) == true);
+        assert!(is_signal_via_u8s(new::u8s::submit_first::i128()) == true);
+    }
     #[cfg(feature = "hpe")]
     {
-        assert!(is_signal_via_len(new::len::signal_first::u64()) == true);
-        assert!(is_signal_via_len(new::len::signal_first::i64()) == true);
-        assert!(is_signal_via_len(new::len::signal_first::u128()) == true);
-        assert!(is_signal_via_len(new::len::signal_first::i128()) == true);
-
-        assert!(is_signal_via_len(new::len::submit_first::u64()) == true);
-        assert!(is_signal_via_len(new::len::submit_first::i64()) == true);
-        assert!(is_signal_via_len(new::len::submit_first::u128()) == true);
-        assert!(is_signal_via_len(new::len::submit_first::i128()) == true);
-        // ----
-
         assert!(is_signal_via_len(new::len::signal_first::u64()) == true);
         assert!(is_signal_via_len(new::len::signal_first::i64()) == true);
         assert!(is_signal_via_len(new::len::signal_first::u128()) == true);
@@ -810,6 +815,18 @@ const _CHECKS: () = {
     }
     // ----
 
+    #[cfg(feature = "mx")]
+    {
+        assert!(is_signal_first(new::u8s::signal_first::u64()) == true);
+        assert!(is_signal_first(new::u8s::signal_first::i64()) == true);
+        assert!(is_signal_first(new::u8s::signal_first::u128()) == true);
+        assert!(is_signal_first(new::u8s::signal_first::i128()) == true);
+
+        assert!(is_submit_first(new::u8s::submit_first::u64()) == true);
+        assert!(is_submit_first(new::u8s::submit_first::i64()) == true);
+        assert!(is_submit_first(new::u8s::submit_first::u128()) == true);
+        assert!(is_submit_first(new::u8s::submit_first::i128()) == true);
+    }
     #[cfg(feature = "hpe")]
     {
         assert!(is_signal_first(new::len::signal_first::u64()) == true);
@@ -836,6 +853,18 @@ const _CHECKS: () = {
         assert!(is_submit_first(new::str::submit_first::i128()) == true);
     }
     // ----
+    #[cfg(feature = "mx")]
+    {
+        assert!(is_hash_via_u64(new::u8s::signal_first::u64()) == true);
+        assert!(is_hash_via_i64(new::u8s::signal_first::i64()) == true);
+        assert!(is_hash_via_u128(new::u8s::signal_first::u128()) == true);
+        assert!(is_hash_via_i128(new::u8s::signal_first::i128()) == true);
+
+        assert!(is_hash_via_u64(new::u8s::submit_first::u64()) == true);
+        assert!(is_hash_via_i64(new::u8s::submit_first::i64()) == true);
+        assert!(is_hash_via_u128(new::u8s::submit_first::u128()) == true);
+        assert!(is_hash_via_i128(new::u8s::submit_first::i128()) == true);
+    }
     #[cfg(feature = "hpe")]
     {
         assert!(is_hash_via_u64(new::len::signal_first::u64()) == true);
