@@ -18,8 +18,9 @@ enum SignalStateKindImpl {
     /// Ordinary hash (or its part) has been written
     WrittenOrdinaryHash = 2,
 
-    // Set to zero, so as to speed up write_u64(,,,) when signal_first(PF)==true. Used ONLY when
-    // signal_first(PF)==true.
+    #[cfg_attr(not(any(feature="mx", feature="hpe")), allow(dead_code))]
+    /// Set to zero, so as to speed up write_u64(,,,) when signal_first(PF)==true. Use ONLY when
+    /// signal_first(PF)==true.
     SignalledProposalComing = 0,
 
     // Used ONLY when submit_first(PF)==true.
@@ -41,12 +42,14 @@ pub struct SignalState {
 }
 impl SignalState {
     // Constructors and mutators. (Again, in order of SignalStateKind's usual lifecycle.)
+    #[inline(always)]
     pub const fn new_nothing_written() -> Self {
         Self {
             kind: SignalStateKind::NothingWritten,
             hash: 0,
         }
     }
+    #[inline(always)]
     pub const fn set_written_ordinary_hash(&mut self) {
         #[cfg(feature = "chk")]
         if matches!(self.kind, SignalStateKind::HashReceived) {
@@ -55,10 +58,12 @@ impl SignalState {
         self.kind = SignalStateKind::WrittenOrdinaryHash;
     }
 
+    #[cfg_attr(not(any(feature="mx", feature="hpe")), allow(dead_code))]
     /// Set the state that it was signalled that a hash proposal is coming.
     ///
     /// Requires `signal_first(PF)==true` - otherwise it panics in debug mode (regardless of, and
     /// ignoring, `chk` feature).
+    #[inline(always)]
     pub const fn set_signalled_proposal_coming(
         &mut self,
         #[allow(non_snake_case)] PF: ProtocolFlags,
@@ -73,6 +78,7 @@ impl SignalState {
     ///
     /// Requires `submit_first(PF)==true` - otherwise it panics in debug mode (regardless of, and
     /// ignoring, `chk` feature).
+    #[inline(always)]
     pub const fn new_hash_possibly_submitted(
         hash: u64,
         #[allow(non_snake_case)] PF: ProtocolFlags,
@@ -87,9 +93,12 @@ impl SignalState {
         }
     }
 
+    #[cfg_attr(not(any(feature="mx", feature="hpe")), allow(dead_code))]
+    #[inline(always)]
     pub const fn set_hash_received(&mut self) {
         self.kind = SignalStateKind::HashReceived;
     }
+    #[inline(always)]
     pub const fn new_hash_received(hash: u64) -> Self {
         Self {
             kind: SignalStateKind::HashReceived,
@@ -98,12 +107,14 @@ impl SignalState {
     }
 
     // Queries (some used by chk only). In order of SignalStateKind's usual lifecycle.
+    #[inline(always)]
     pub const fn is_nothing_written(&self) -> bool {
         //@TODO replace with matches!(..)
         matches!(self.kind, SignalStateKind::NothingWritten)
     }
 
     #[cfg(feature = "chk")]
+    #[inline(always)]
     const fn is_nothing_written_or_ordinary_hash(&self) -> bool {
         matches!(
             self.kind,
@@ -116,6 +127,7 @@ impl SignalState {
     /// - nothing written, or
     /// - ordinary hash data written, or
     /// - hash was possibly submitted - but that is checked only if `submit_first(PF)==true` ( otherwise this state is not applicable).
+    #[inline(always)]
     const fn is_nothing_written_or_ordinary_hash_or_possibly_submitted(
         &self,
         #[allow(non_snake_case)] PF: ProtocolFlags,
@@ -143,6 +155,7 @@ impl SignalState {
     ///
     /// Requires `signal_first(PF)==true` - otherwise it panics in debug mode (regardless of, and
     /// ignoring, `chk` feature).
+    #[inline(always)]
     pub const fn is_signalled_proposal_coming(
         &self,
         #[allow(non_snake_case)] PF: ProtocolFlags,
@@ -154,6 +167,8 @@ impl SignalState {
         matches!(self.kind, SignalStateKindImpl::SignalledProposalComing)
     }
 
+    #[cfg_attr(not(any(feature="mx", feature="hpe")), allow(dead_code))]
+    #[inline(always)]
     pub const fn is_hash_possibly_submitted(
         &self,
         #[allow(non_snake_case)] PF: ProtocolFlags,
@@ -168,6 +183,7 @@ impl SignalState {
         matches!(self.kind, SignalStateKindImpl::HashReceived)
     }
 
+    #[cfg_attr(not(any(feature="mx", feature="hpe")), allow(dead_code))]
     #[inline(always)]
     pub const fn assert_nothing_written(&self) {
         #[cfg(feature = "chk")]
