@@ -12,15 +12,16 @@ use flags::{
     SignalVia,
 };
 
+#[cfg(feature = "hpe")]
 /// A fictitious slice length, which represents a signal that we either just handed an injected
 /// hash, or we are about to hand it - depending on whether we signal first, or submit first.
 pub const LEN_SIGNAL_HASH: usize = usize::MAX;
 
-#[cfg(feature = "chk-flow")]
+#[cfg(all(feature = "hpe", feature = "chk-flow"))]
 /// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation submits a hash
 /// first (before signalling).
 pub const LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST: usize = usize::MAX - 1;
-#[cfg(feature = "chk-flow")]
+#[cfg(all(feature = "hpe", feature = "chk-flow"))]
 /// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation signals first (before submitting a hash).
 pub const LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST: usize = usize::MAX - 2;
 
@@ -110,19 +111,19 @@ fn signal<H: Hasher>(#[allow(non_snake_case)] PF: ProtocolFlags, _hasher: &mut H
 }
 
 #[inline(always)]
-fn submit<H: Hasher>(#[allow(non_snake_case)] PF: ProtocolFlags, _hasher: &mut H, hash: u64) {
+fn submit_hash<H: Hasher, const PF: ProtocolFlags>(hasher: &mut H, hash: u64) {
     match flags::hash_via(PF) {
         HashVia::U64 => {
-            _hasher.write_u64(hash);
+            hasher.write_u64(hash);
         }
         HashVia::I64 => {
-            _hasher.write_i64(hash as i64);
+            hasher.write_i64(hash as i64);
         }
         HashVia::U128 => {
-            _hasher.write_u128(hash as u128);
+            hasher.write_u128(hash as u128);
         }
         HashVia::I128 => {
-            _hasher.write_i128(hash as i128);
+            hasher.write_i128(hash as i128);
         }
     };
 }
@@ -152,18 +153,12 @@ _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,*/
 {
     match flags::flow(PF) {
         Flow::SubmitFirst => {
-            hasher.write_u64(hash);
-            if true {
-                todo!("i64, u128, i128");
-            }
+            submit_hash::<_, PF>(hasher, hash);
             signal(PF, hasher);
         }
         Flow::SignalFirst => {
             signal(PF, hasher);
-            hasher.write_u64(hash);
-            if true {
-                todo!("i64, u128, i128");
-            }
+            submit_hash::<_, PF>(hasher, hash);
         }
     }
     // Check that finish() does return the signalled hash. We do this BEFORE

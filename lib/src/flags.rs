@@ -12,8 +12,8 @@ pub type ProtocolFlags = ProtocolFlagsImpl;
 #[cfg(not(feature = "flags"))]
 type ProtocolFlagsImpl = u8;
 
-#[cfg(feature = "flags")]
-#[derive(ConstParamTy, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "flags", derive(ConstParamTy))]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum HashVia {
     U64,
     I64,
@@ -59,8 +59,8 @@ const FLAGS_MASK_HASH_U128: ProtocolFlags = 0b10000;
 #[cfg(not(feature = "flags"))]
 const FLAGS_MASK_HASH_I128: ProtocolFlags = 0b11000;
 
-#[cfg(not(feature = "flags"))]
-const FLAGS_BITS_HASH: ProtocolFlags = 0b11000;
+//#[cfg(not(feature = "flags"))]
+//const FLAGS_BITS_HASH: ProtocolFlags = 0b11000;
 
 #[cfg(not(feature = "flags"))]
 const FLAGS_MAX: ProtocolFlags = 0b11110;
@@ -674,8 +674,8 @@ pub mod new {
 
             #[cfg(not(feature = "flags"))]
             use crate::flags::{
-                FLAGS_BIT_SIGNAL_FIRST, FLAGS_MASK_HASH_I64, FLAGS_MASK_HASH_I128,
-                FLAGS_MASK_HASH_U64, FLAGS_MASK_HASH_U128, FLAGS_MASK_VIA_STR,
+                FLAGS_MASK_HASH_I64, FLAGS_MASK_HASH_I128, FLAGS_MASK_HASH_U64,
+                FLAGS_MASK_HASH_U128, FLAGS_MASK_VIA_STR,
             };
 
             /// Flag constructor for protocols that

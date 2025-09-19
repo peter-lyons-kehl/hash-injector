@@ -102,6 +102,7 @@ impl SignalState {
         //@TODO replace with matches!(..)
         matches!(self.kind, SignalStateKind::NothingWritten)
     }
+
     #[cfg(feature = "chk")]
     const fn is_nothing_written_or_ordinary_hash(&self) -> bool {
         matches!(
@@ -109,6 +110,7 @@ impl SignalState {
             SignalStateKind::NothingWritten | SignalStateKind::WrittenOrdinaryHash
         )
     }
+
     #[cfg(feature = "chk")]
     /// Checks whether the state is
     /// - nothing written, or
@@ -204,6 +206,11 @@ const _CHECKS: () = {
         SignalState::new_nothing_written().kind,
         SignalStateKind::NothingWritten
     ));
+    assert!(SignalState::new_nothing_written().is_nothing_written());
+    #[cfg(feature = "chk")]
+    assert!(SignalState::new_nothing_written().is_nothing_written_or_ordinary_hash());
+    SignalState::new_nothing_written().assert_nothing_written();
+
     {
         let mut ordinary_zero_hash = SignalState::new_nothing_written();
         ordinary_zero_hash.set_written_ordinary_hash();
@@ -257,13 +264,21 @@ const _CHECKS: () = {
         while i < SXXXXX_FIRST_FLAGS_LEN {
             let pf = SIGNAL_FIRST_FLAGS[i];
             assert!(flags::is_signal_first(pf));
+
             let mut state = SignalState::new_nothing_written();
             state.set_signalled_proposal_coming(pf);
+
+            #[cfg(feature = "chk")]
+            assert!(
+                SignalState::new_nothing_written()
+                    .is_nothing_written_or_ordinary_hash_or_possibly_submitted(pf)
+            );
+
             i += 1;
         }
     }
 
-    const SUBMT_FIRST_FLAGS: [ProtocolFlags; SXXXXX_FIRST_FLAGS_LEN] = [
+    const SUBMIT_FIRST_FLAGS: [ProtocolFlags; SXXXXX_FIRST_FLAGS_LEN] = [
         #[cfg(feature = "mx")]
         flags::new::u8s::submit_first::u64(),
         #[cfg(feature = "mx")]
@@ -289,6 +304,24 @@ const _CHECKS: () = {
         #[cfg(all(feature = "mx", feature = "hpe"))]
         flags::new::str::submit_first::i128(),
     ];
+    {
+        //for pf in [flags::new::len::signal_first::i128()] {
+        let mut i = 0usize;
+        while i < SXXXXX_FIRST_FLAGS_LEN {
+            let pf = SUBMIT_FIRST_FLAGS[i];
+
+            assert!(flags::is_submit_first(pf));
+            SignalState::new_hash_possibly_submitted(0, pf);
+
+            #[cfg(feature = "chk")]
+            assert!(
+                SignalState::new_nothing_written()
+                    .is_nothing_written_or_ordinary_hash_or_possibly_submitted(pf)
+            );
+
+            i += 1;
+        }
+    }
 };
 
 #[cfg(test)]
@@ -296,5 +329,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {}
+    fn it_works() {
+        SignalState::new_nothing_written().assert_nothing_written_or_ordinary_hash();
+    }
 }
