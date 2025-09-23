@@ -1,5 +1,7 @@
 use crate::ProtocolFlags;
 use crate::flags;
+#[cfg(feature = "chk-details")]
+use core::fmt::Arguments;
 
 #[allow(private_interfaces)]
 pub type SignalStateKind = SignalStateKindImpl;
@@ -18,7 +20,7 @@ enum SignalStateKindImpl {
     /// Ordinary hash (or its part) has been written
     WrittenOrdinaryHash = 2,
 
-    #[cfg_attr(not(any(feature="mx", feature="hpe")), allow(dead_code))]
+    #[cfg_attr(not(any(feature = "mx", feature = "hpe")), allow(dead_code))]
     /// Set to zero, so as to speed up write_u64(,,,) when signal_first(PF)==true. Use ONLY when
     /// signal_first(PF)==true.
     SignalledProposalComing = 0,
@@ -29,15 +31,34 @@ enum SignalStateKindImpl {
     HashReceived = 4,
 }
 
+#[cfg(feature = "chk-details")]
+impl SignalStateKindImpl {
+    /// For use in [Arguments]/
+    const fn type_and_variant(&self) -> &'static str {
+        match self {
+            Self::NothingWritten => "SignalStateKindImpl::NothingWritten",
+            Self::WrittenOrdinaryHash => "SignalStateKindImpl::WrittenOrdinaryHash",
+            Self::SignalledProposalComing => "SignalStateKindImpl::SignalledProposalComing",
+            Self::HashPossiblySubmitted => "SignalStateKindImpl::HashPossiblySubmitted",
+            Self::HashReceived => "SignalStateKindImpl::HashReceived",
+        }
+    }
+}
 /// This used to be a data-carrying enum on its own, separate from SignalStateKind, NOT containing
 /// SignalStateKind, and carrying the possibly submitted/received hash in its variants. But, then we
 /// couldn't specify its variant integer values without fixing the representation, which would be
 /// limiting.
+///
+/// Another advantage of separation is that [SignalStateKindImpl] has
+/// [SignalStateKindImpl::type_and_variant], helps with making
+/// [SignalState::assert_nothing_written_or_ordinary_hash] and
+/// [SignalState::assert_nothing_written_or_ordinary_hash_or_possibly_submitted] `const fn`. That
+/// allows us to validate them in [_CHECKS].
 #[derive(PartialEq, Eq, Debug)]
 pub struct SignalState {
     #[allow(private_interfaces)]
     pub kind: SignalStateKind,
-    /// Only valid if kind is appropriate.
+    /// Only valid if [SignalState::kind] is appropriate.
     pub hash: u64,
 }
 impl SignalState {
@@ -58,7 +79,7 @@ impl SignalState {
         self.kind = SignalStateKind::WrittenOrdinaryHash;
     }
 
-    #[cfg_attr(not(any(feature="mx", feature="hpe")), allow(dead_code))]
+    #[cfg_attr(not(any(feature = "mx", feature = "hpe")), allow(dead_code))]
     /// Set the state that it was signalled that a hash proposal is coming.
     ///
     /// Requires `signal_first(PF)==true` - otherwise it panics in debug mode (regardless of, and
@@ -93,7 +114,7 @@ impl SignalState {
         }
     }
 
-    #[cfg_attr(not(any(feature="mx", feature="hpe")), allow(dead_code))]
+    #[cfg_attr(not(any(feature = "mx", feature = "hpe")), allow(dead_code))]
     #[inline(always)]
     pub const fn set_hash_received(&mut self) {
         self.kind = SignalStateKind::HashReceived;
@@ -167,7 +188,7 @@ impl SignalState {
         matches!(self.kind, SignalStateKindImpl::SignalledProposalComing)
     }
 
-    #[cfg_attr(not(any(feature="mx", feature="hpe")), allow(dead_code))]
+    #[cfg_attr(not(any(feature = "mx", feature = "hpe")), allow(dead_code))]
     #[inline(always)]
     pub const fn is_hash_possibly_submitted(
         &self,
@@ -175,7 +196,7 @@ impl SignalState {
     ) -> bool {
         #[cfg(debug_assertions)]
         if flags::is_signal_first(PF) {
-            panic!();
+            panic!()
         }
         matches!(self.kind, SignalStateKind::HashPossiblySubmitted)
     }
@@ -183,36 +204,74 @@ impl SignalState {
         matches!(self.kind, SignalStateKindImpl::HashReceived)
     }
 
-    #[cfg_attr(not(any(feature="mx", feature="hpe")), allow(dead_code))]
+    #[cfg_attr(not(any(feature = "mx", feature = "hpe")), allow(dead_code))]
     #[inline(always)]
     pub const fn assert_nothing_written(&self) {
         #[cfg(feature = "chk")]
-        assert!(self.is_nothing_written());
+        if !self.is_nothing_written() {
+            #[cfg(not(feature = "chk-details"))]
+            {
+                panic!("Expecting the state to be SignalStateKindImpl::NothingWritten.");
+            }
+            #[cfg(feature = "chk-details")]
+            {
+                let args_parts: [&'static str; 2] = [
+                    "Expecting the state to be SignalStateKindImpl::NothingWritten, but the state was: {}.",
+                    self.kind.type_and_variant(),
+                ];
+                let args: Arguments = Arguments::new_const(&args_parts);
+                core::panicking::panic_fmt(args)
+            }
+        }
     }
     #[inline(always)]
-    pub fn assert_nothing_written_or_ordinary_hash(&self) {
+    pub const fn assert_nothing_written_or_ordinary_hash(&self) {
         #[cfg(feature = "chk")]
-        assert!(
-            self.is_nothing_written_or_ordinary_hash(),
-            "Expecting the state to be NothingWritten or WrittenOrdinaryHash, but the state was: {:?}",
-            self
-        );
+        if !self.is_nothing_written_or_ordinary_hash() {
+            #[cfg(not(feature = "chk-details"))]
+            {
+                panic!(
+                    "Expecting the state to be SignalStateKindImpl::NothingWritten or SignalStateKindImpl::WrittenOrdinaryHash."
+                );
+            }
+            #[cfg(feature = "chk-details")]
+            {
+                let args_parts: [&'static str; 2] = [
+                    "Expecting the state to be SignalStateKindImpl::NothingWritten or SignalStateKindImpl::WrittenOrdinaryHash, but the state was: {}.",
+                    self.kind.type_and_variant(),
+                ];
+                let args: Arguments = Arguments::new_const(&args_parts);
+                core::panicking::panic_fmt(args)
+            }
+        }
     }
     /// Assert that
     /// - no hash has been signalled (if we do signal first - before submitting), and
     /// - no hash has been received (regardless of whether we signal first, or submit first).
     #[inline(always)]
-    pub fn assert_nothing_written_or_ordinary_hash_or_possibly_submitted(
+    pub const fn assert_nothing_written_or_ordinary_hash_or_possibly_submitted(
         &self,
         #[allow(non_snake_case)] _PF: ProtocolFlags,
     ) {
         #[cfg(feature = "chk")]
         {
-            assert!(
-                self.is_nothing_written_or_ordinary_hash_or_possibly_submitted(_PF),
-                "Expecting the state to be NothingWritten or WrittenOrdinaryHash, or HashPossiblySubmitted (if applicable), but the state was: {:?}",
-                self
-            );
+            if !self.is_nothing_written_or_ordinary_hash_or_possibly_submitted(_PF) {
+                #[cfg(not(feature = "chk-details"))]
+                {
+                    panic!(
+                        "Expecting the state to be SignalStateKindImpl::NothingWritten, or SignalStateKindImpl::WrittenOrdinaryHash, or SignalStateKindImpl::HashPossiblySubmitted (if applicable)."
+                    );
+                }
+                #[cfg(feature = "chk-details")]
+                {
+                    let args_parts: [&'static str; 2] = [
+                        "Expecting the state to be SignalStateKindImpl::NothingWritten, or SignalStateKindImpl::WrittenOrdinaryHash, or SignalStateKindImpl::HashPossiblySubmitted (if applicable), but the state was: {}.",
+                        self.kind.type_and_variant(),
+                    ];
+                    let args: Arguments = Arguments::new_const(&args_parts);
+                    core::panicking::panic_fmt(args);
+                }
+            }
         }
     }
 }

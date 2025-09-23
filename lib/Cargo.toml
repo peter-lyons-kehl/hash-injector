@@ -30,10 +30,21 @@ unexpected_cfgs = { level = "forbid"}
 
 [features]
 
-# TODO Serde
+# Using Mutex and its data_ptr function to get signalling slices. It requires "std" library. It
+# involves trivial unsafe code, used only for creation of static signalling string slices/pointers.
+# This enables
+# - "u8 slice"-based signalling, protocol flags in flags::new::u8s
+# - "str" signalling, protocol flags in flags::new::str - if "hpe" feature is enabled, too. That
+#   requires nightly.
+mx = []
 
-# Asserts (in either debug and release mode). Expensive.
-chk = []
+# Using Rust feature "hasher_prefixfree_extras": https://github.com/rust-lang/rust/issues/96762.
+# This enables
+# - "prefix length"-based signalling, protocol flags in flags::new::len
+# - "str" signalling, protocol flags in flags::new::str - if "mx" feature is enabled, too.
+#
+# Both require nightly.
+hpe = []
 
 # Whether to use a higher level type for the const generic parameter type ProtocolFlags. Requires
 # nightly toolchain. This feature CAN be used with incompatible Hashers, too.
@@ -54,21 +65,11 @@ chk-hash = []
 # NOT very expensive.
 chk-flow = []
 
-# Using Mutex and its data_ptr function to get signalling slices. It requires "std" library. It
-# involves trivial unsafe code, used only for creation of static signalling string slices/pointers.
-# This enables
-# - "u8 slice"-based signalling, protocol flags in flags::new::u8s
-# - "str" signalling, protocol flags in flags::new::str - if "hpe" feature is enabled, too. That
-#   requires nightly.
-mx = []
+# Asserts (in either debug and release mode). Expensive.
+chk = []
 
-# Using Rust feature "hasher_prefixfree_extras": https://github.com/rust-lang/rust/issues/96762.
-# This enables
-# - "prefix length"-based signalling, protocol flags in flags::new::len
-# - "str" signalling, protocol flags in flags::new::str - if "mx" feature is enabled, too.
-#
-# Both require nightly.
-hpe = []
+# Extra details in asserts. Requiring nightly.
+chk-details = ["chk"]
 
 # Some combinations of features. Do leave trailing spaces on empty lines, for up & down navigation.
 #                                                           
@@ -78,13 +79,13 @@ hpe = []
 #default = [                                                     ]
 #default = [                        "chk-flow"                   ]
 #default = [                                    "chk-hash"       ]
-#default = [                                                "chk"]
+#default = [                                                "chk", "chk-details"]
 #default = [                        "chk-flow", "chk-hash", "chk"]
 #default = [               "flags"                               ]
 #default = [               "flags", "chk-flow"                   ]
 #default = [               "flags",             "chk-hash"       ]
 #default = [               "flags",                         "chk"]
-default = [               "flags", "chk-flow", "chk-hash", "chk"]
+#default = [               "flags", "chk-flow", "chk-hash", "chk"]
 #                                                                 
 #default = [  "mx"                                               ]
 #default = [  "mx",                 "chk-flow"                   ]
@@ -112,3 +113,4 @@ default = [               "flags", "chk-flow", "chk-hash", "chk"]
 #default = [  "mx", "hpe",          "chk-flow", "chk-hash", "chk"]
 #default = [  "mx", "hpe", "flags"                               ]
 #default = [  "mx", "hpe", "flags", "chk-flow", "chk-hash", "chk"]
+#default = [  "mx", "hpe", "flags", "chk-flow", "chk-hash", "chk", "chk-details"]

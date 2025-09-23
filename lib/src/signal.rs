@@ -35,7 +35,6 @@ pub static MX: Mutex<U8Array> = hint::black_box(Mutex::new([b'A', b'B', b'C']));
 fn str_full() -> &'static str {
     let bytes = unsafe { &*MX.data_ptr() as &U8Array };
     let bytes_slice = &bytes[..];
-    // @TODO earlier: str::from_utf8(bytes_slice) // CHECKED
     unsafe { str::from_utf8_unchecked(bytes_slice) }
 }
 #[cfg(feature = "mx")]
