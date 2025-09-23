@@ -1,4 +1,6 @@
 use core::hash::Hasher;
+//use core::slice;
+
 #[cfg(feature = "mx")]
 use core::hint;
 #[cfg(feature = "mx")]
@@ -22,19 +24,24 @@ pub const LEN_SIGNAL_HASH: usize = usize::MAX;
 /// first (before signalling).
 pub const LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST: usize = usize::MAX - 1;
 #[cfg(all(feature = "hpe", feature = "chk-flow"))]
-/// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation signals first (before submitting a hash).
+/// A fictitious slice length, indicating that a [`core::hash::Hash`] implementation signals first
+/// (before submitting a hash).
 pub const LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST: usize = usize::MAX - 2;
 
 #[cfg(feature = "mx")]
 type U8Array = [u8; 3];
 #[cfg(feature = "mx")]
 pub static MX: Mutex<U8Array> = hint::black_box(Mutex::new([b'A', b'B', b'C']));
+/*const _: () = {
+    let __ = ARR.as_slice();
+    let __ = unsafe { slice::from_raw_parts(ARR.as_ptr(), 1) };
+};*/
 
 #[cfg(feature = "mx")]
 #[inline(always)]
 fn str_full() -> &'static str {
     let bytes = unsafe { &*MX.data_ptr() as &U8Array };
-    let bytes_slice = &bytes[..];
+    let bytes_slice = bytes.as_slice();
     unsafe { str::from_utf8_unchecked(bytes_slice) }
 }
 #[cfg(feature = "mx")]

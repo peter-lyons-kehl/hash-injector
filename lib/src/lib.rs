@@ -4,12 +4,20 @@
 #![cfg_attr(feature = "mx", feature(mutex_data_ptr))] // https://github.com/rust-lang/rust/issues/140368
 #![cfg_attr(feature = "hpe", feature(hasher_prefixfree_extras))] //  https://github.com/rust-lang/rust/issues/96762
 #![cfg_attr(feature = "flags", feature(adt_const_params))]
+// https://github.com/rust-lang/rust/issues/95174
 //#![cfg_attr(feature = "chk-details", feature(format_args))]
 #![cfg_attr(feature = "chk-details", allow(internal_features))]
 #![cfg_attr(
     feature = "chk-details",
+    // No tracking issues (as of mid 2025). Only
+    // https://doc.rust-lang.org/nightly/unstable-book/library-features/const-format-args.html
+    // https://doc.rust-lang.org/nightly/unstable-book/library-features/fmt-internals.html
+    // https://doc.rust-lang.org/nightly/unstable-book/library-features/panic-internals.html
     feature(const_format_args, fmt_internals, panic_internals)
 )]
+// - const_index https://github.com/rust-lang/rust/issues/143775
+// - const_trait_impl https://github.com/rust-lang/rust/issues/143874
+#![cfg_attr(feature = "chk-details", feature(const_index, const_trait_impl))]
 #![forbid(unused_must_use)]
 
 pub use flags::{

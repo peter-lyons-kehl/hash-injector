@@ -126,6 +126,7 @@ impl SignalState {
             hash,
         }
     }
+    // ------
 
     // Queries (some used by chk only). In order of SignalStateKind's usual lifecycle.
     #[inline(always)]
@@ -203,6 +204,7 @@ impl SignalState {
     pub const fn is_hash_received(&self) -> bool {
         matches!(self.kind, SignalStateKindImpl::HashReceived)
     }
+    // ------
 
     #[cfg_attr(not(any(feature = "mx", feature = "hpe")), allow(dead_code))]
     #[inline(always)]
@@ -277,20 +279,28 @@ impl SignalState {
 }
 
 const _CHECKS: () = {
-    assert!(matches!(
-        SignalState::new_nothing_written().kind,
-        SignalStateKind::NothingWritten
-    ));
-    assert!(SignalState::new_nothing_written().is_nothing_written());
-    #[cfg(feature = "chk")]
-    assert!(SignalState::new_nothing_written().is_nothing_written_or_ordinary_hash());
-    SignalState::new_nothing_written().assert_nothing_written();
-
+    let nothing_written = SignalState::new_nothing_written();
     {
-        let mut ordinary_zero_hash = SignalState::new_nothing_written();
-        ordinary_zero_hash.set_written_ordinary_hash();
+        nothing_written.assert_nothing_written();
+        nothing_written.assert_nothing_written_or_ordinary_hash();
+        assert!(nothing_written.is_nothing_written());
+
+        #[cfg(feature = "chk")]
+        assert!(nothing_written.is_nothing_written_or_ordinary_hash());
+
         assert!(matches!(
-            ordinary_zero_hash.kind,
+            nothing_written.kind,
+            SignalStateKind::NothingWritten
+        ));
+    }
+    {
+        let mut written_ordinary_hash_zero = SignalState::new_nothing_written();
+        written_ordinary_hash_zero.set_written_ordinary_hash();
+        written_ordinary_hash_zero.assert_nothing_written_or_ordinary_hash();
+        #[cfg(feature = "chk")]
+        assert!(written_ordinary_hash_zero.is_nothing_written_or_ordinary_hash());
+        assert!(matches!(
+            written_ordinary_hash_zero.kind,
             SignalStateKind::WrittenOrdinaryHash
         ));
     }
@@ -337,17 +347,16 @@ const _CHECKS: () = {
         //for pf in [flags::new::len::signal_first::i128()] {
         let mut i = 0usize;
         while i < SXXXXX_FIRST_FLAGS_LEN {
-            let pf = SIGNAL_FIRST_FLAGS[i];
-            assert!(flags::is_signal_first(pf));
+            #[allow(non_snake_case)]
+            let PF = SIGNAL_FIRST_FLAGS[i];
+            assert!(flags::is_signal_first(PF));
 
             let mut state = SignalState::new_nothing_written();
-            state.set_signalled_proposal_coming(pf);
+            state.set_signalled_proposal_coming(PF);
 
+            nothing_written.assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
             #[cfg(feature = "chk")]
-            assert!(
-                SignalState::new_nothing_written()
-                    .is_nothing_written_or_ordinary_hash_or_possibly_submitted(pf)
-            );
+            assert!(nothing_written.is_nothing_written_or_ordinary_hash_or_possibly_submitted(PF));
 
             i += 1;
         }
@@ -380,19 +389,21 @@ const _CHECKS: () = {
         flags::new::str::submit_first::i128(),
     ];
     {
-        //for pf in [flags::new::len::signal_first::i128()] {
         let mut i = 0usize;
         while i < SXXXXX_FIRST_FLAGS_LEN {
-            let pf = SUBMIT_FIRST_FLAGS[i];
+            #[allow(non_snake_case)]
+            let PF = SUBMIT_FIRST_FLAGS[i];
+            assert!(flags::is_submit_first(PF));
 
-            assert!(flags::is_submit_first(pf));
-            SignalState::new_hash_possibly_submitted(0, pf);
-
+            nothing_written.assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
             #[cfg(feature = "chk")]
-            assert!(
-                SignalState::new_nothing_written()
-                    .is_nothing_written_or_ordinary_hash_or_possibly_submitted(pf)
-            );
+            {
+                assert!(
+                    nothing_written.is_nothing_written_or_ordinary_hash_or_possibly_submitted(PF)
+                );
+            }
+
+            SignalState::new_hash_possibly_submitted(0, PF);
 
             i += 1;
         }
