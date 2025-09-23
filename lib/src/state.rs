@@ -30,7 +30,19 @@ enum SignalStateKindImpl {
 
     HashReceived = 4,
 }
-
+impl SignalStateKindImpl {
+    #[allow(dead_code)]
+    const fn equals(&self, other: &Self) -> bool {
+        matches!(
+            (self, other),
+            (Self::NothingWritten, Self::NothingWritten)
+                | (Self::WrittenOrdinaryHash, Self::WrittenOrdinaryHash)
+                | (Self::SignalledProposalComing, Self::SignalledProposalComing)
+                | (Self::HashPossiblySubmitted, Self::HashPossiblySubmitted)
+                | (Self::HashReceived, Self::HashReceived)
+        )
+    }
+}
 #[cfg(feature = "chk-details")]
 impl SignalStateKindImpl {
     /// For use in [Arguments]/
@@ -91,7 +103,7 @@ impl SignalState {
     ) {
         #[cfg(debug_assertions)]
         if flags::is_submit_first(PF) {
-            panic!();
+            panic!("Supported only for ProtocolFlags that signal first.");
         }
         self.kind = SignalStateKind::SignalledProposalComing;
     }
@@ -106,7 +118,7 @@ impl SignalState {
     ) -> Self {
         #[cfg(debug_assertions)]
         if flags::is_signal_first(PF) {
-            panic!();
+            panic!("Supported only for ProtocolFlags that submit first.");
         }
         Self {
             kind: SignalStateKind::HashPossiblySubmitted,
@@ -135,7 +147,7 @@ impl SignalState {
         matches!(self.kind, SignalStateKind::NothingWritten)
     }
 
-    #[cfg(feature = "chk")]
+    #[cfg_attr(not(feature = "chk"), allow(dead_code))]
     #[inline(always)]
     const fn is_nothing_written_or_ordinary_hash(&self) -> bool {
         matches!(
@@ -144,7 +156,7 @@ impl SignalState {
         )
     }
 
-    #[cfg(feature = "chk")]
+    #[cfg_attr(not(feature = "chk"), allow(dead_code))]
     /// Checks whether the state is
     /// - nothing written, or
     /// - ordinary hash data written, or
@@ -184,7 +196,7 @@ impl SignalState {
     ) -> bool {
         #[cfg(debug_assertions)]
         if flags::is_submit_first(PF) {
-            panic!();
+            panic!("Supported only for ProtocolFlags that signal first.");
         }
         matches!(self.kind, SignalStateKindImpl::SignalledProposalComing)
     }
@@ -197,7 +209,7 @@ impl SignalState {
     ) -> bool {
         #[cfg(debug_assertions)]
         if flags::is_signal_first(PF) {
-            panic!()
+            panic!("Supported only for ProtocolFlags that submit first.")
         }
         matches!(self.kind, SignalStateKind::HashPossiblySubmitted)
     }
@@ -282,23 +294,31 @@ const _CHECKS: () = {
     let nothing_written = SignalState::new_nothing_written();
     {
         nothing_written.assert_nothing_written();
-        nothing_written.assert_nothing_written_or_ordinary_hash();
         assert!(nothing_written.is_nothing_written());
 
+        nothing_written.assert_nothing_written_or_ordinary_hash();
         #[cfg(feature = "chk")]
         assert!(nothing_written.is_nothing_written_or_ordinary_hash());
+
+        assert!(!nothing_written.is_hash_received());
 
         assert!(matches!(
             nothing_written.kind,
             SignalStateKind::NothingWritten
         ));
     }
-    {
+    let written_ordinary_hash_zero = {
         let mut written_ordinary_hash_zero = SignalState::new_nothing_written();
         written_ordinary_hash_zero.set_written_ordinary_hash();
+        written_ordinary_hash_zero
+    };
+    {
         written_ordinary_hash_zero.assert_nothing_written_or_ordinary_hash();
         #[cfg(feature = "chk")]
         assert!(written_ordinary_hash_zero.is_nothing_written_or_ordinary_hash());
+
+        assert!(!nothing_written.is_hash_received());
+
         assert!(matches!(
             written_ordinary_hash_zero.kind,
             SignalStateKind::WrittenOrdinaryHash
@@ -351,12 +371,32 @@ const _CHECKS: () = {
             let PF = SIGNAL_FIRST_FLAGS[i];
             assert!(flags::is_signal_first(PF));
 
-            let mut state = SignalState::new_nothing_written();
-            state.set_signalled_proposal_coming(PF);
-
             nothing_written.assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
             #[cfg(feature = "chk")]
             assert!(nothing_written.is_nothing_written_or_ordinary_hash_or_possibly_submitted(PF));
+
+            assert!(!nothing_written.is_signalled_proposal_coming(PF));
+            // ----
+            let signalled_proposal_coming = {
+                let mut signalled_proposal_coming = SignalState::new_nothing_written();
+                signalled_proposal_coming.set_signalled_proposal_coming(PF);
+                signalled_proposal_coming
+            };
+            assert!(!signalled_proposal_coming.is_nothing_written());
+            assert!(!signalled_proposal_coming.is_nothing_written_or_ordinary_hash());
+            assert!(
+                !signalled_proposal_coming
+                    .is_nothing_written_or_ordinary_hash_or_possibly_submitted(PF)
+            );
+
+            assert!(signalled_proposal_coming.is_signalled_proposal_coming(PF));
+
+            assert!(!signalled_proposal_coming.is_hash_received());
+
+            assert!(matches!(
+                signalled_proposal_coming.kind,
+                SignalStateKind::SignalledProposalComing
+            ));
 
             i += 1;
         }
@@ -397,17 +437,69 @@ const _CHECKS: () = {
 
             nothing_written.assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
             #[cfg(feature = "chk")]
-            {
-                assert!(
-                    nothing_written.is_nothing_written_or_ordinary_hash_or_possibly_submitted(PF)
-                );
-            }
+            assert!(nothing_written.is_nothing_written_or_ordinary_hash_or_possibly_submitted(PF));
 
-            SignalState::new_hash_possibly_submitted(0, PF);
+            assert!(!nothing_written.is_hash_possibly_submitted(PF));
+            // ----
+            let hash_possibly_submitted = SignalState::new_hash_possibly_submitted(0, PF);
+
+            assert!(!hash_possibly_submitted.is_nothing_written());
+            assert!(!hash_possibly_submitted.is_nothing_written_or_ordinary_hash());
+
+            assert!(
+                hash_possibly_submitted
+                    .is_nothing_written_or_ordinary_hash_or_possibly_submitted(PF)
+            );
+            hash_possibly_submitted
+                .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
+
+            assert!(!hash_possibly_submitted.is_hash_received());
+
+            assert!(matches!(
+                hash_possibly_submitted.kind,
+                SignalStateKind::HashPossiblySubmitted
+            ));
 
             i += 1;
         }
     }
+
+    let set_hash_received = {
+        let mut set_hash_received = SignalState::new_nothing_written();
+        set_hash_received.set_hash_received();
+        set_hash_received
+    };
+    let new_hash_received = SignalState::new_hash_received(0);
+    // @TODO Use derived(?) or own `impl` ofr PartialEq/const PartailEq, once const PartialEq is
+    // stable: https://github.com/rust-lang/rust/issues/143800
+    assert!(set_hash_received.kind.equals(&new_hash_received.kind));
+    assert!(set_hash_received.hash == new_hash_received.hash);
+
+    assert!(!set_hash_received.is_nothing_written());
+    assert!(!set_hash_received.is_nothing_written_or_ordinary_hash());
+    {
+        //for pf in [flags::new::len::signal_first::i128()] {
+        let mut i = 0usize;
+        while i < SXXXXX_FIRST_FLAGS_LEN {
+            assert!(
+                !set_hash_received.is_nothing_written_or_ordinary_hash_or_possibly_submitted(
+                    SUBMIT_FIRST_FLAGS[i]
+                )
+            );
+
+            assert!(!set_hash_received.is_signalled_proposal_coming(SIGNAL_FIRST_FLAGS[i]));
+
+            assert!(!set_hash_received.is_hash_possibly_submitted(SUBMIT_FIRST_FLAGS[i]));
+
+            i += 1;
+        }
+    }
+    assert!(set_hash_received.is_hash_received());
+
+    assert!(matches!(
+        set_hash_received.kind,
+        SignalStateKind::HashReceived
+    ));
 };
 
 #[cfg(test)]
