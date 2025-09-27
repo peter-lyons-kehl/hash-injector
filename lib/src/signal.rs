@@ -1,9 +1,13 @@
 use core::hash::Hasher;
 //use core::slice;
 
+#[cfg(feature = "mx")]
+use core::hint;
 #[cfg(any(feature = "mx", feature = "ndd"))]
-use core::{hint, ptr, str};
-#[cfg(any(feature = "mx", feature = "ndd"))]
+use core::{ptr, str};
+#[cfg(feature = "ndd")]
+use ndd::NonDeDuplicated;
+#[cfg(feature = "mx")]
 use std::sync::Mutex;
 
 use crate::flags;
@@ -25,16 +29,24 @@ pub const LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST: usize = usize::MAX - 2;
 
 #[cfg(any(feature = "mx", feature = "ndd"))]
 type U8Array = [u8; 3];
-#[cfg(any(feature = "mx", feature = "ndd"))]
+#[cfg(feature = "mx")]
 pub static MX: Mutex<U8Array> = hint::black_box(Mutex::new([b'A', b'B', b'C']));
+#[cfg(feature = "ndd")]
+pub static NDD: NonDeDuplicated<U8Array> = NonDeDuplicated::new([b'A', b'B', b'C']);
 
 #[cfg(any(feature = "mx", feature = "ndd"))]
 #[inline(always)]
 fn str_full() -> &'static str {
+    // TODO check whether the following is the same, or whether it creates a temporary local array!
+    //
+    //let bytes = &*NDD;
+    #[cfg(feature = "ndd")]
+    let bytes = NDD.get();
+    #[cfg(feature = "mx")]
     let bytes = unsafe { &*MX.data_ptr() as &U8Array };
     let bytes_slice = bytes.as_slice();
     #[cfg(feature = "ndd")]
-    return str::from_utf8(bytes_slice);
+    return str::from_utf8(bytes_slice).unwrap();
     #[cfg(feature = "mx")]
     return unsafe { str::from_utf8_unchecked(bytes_slice) };
 }
@@ -42,7 +54,7 @@ fn str_full() -> &'static str {
 #[inline(always)]
 pub fn str_signal_hash() -> &'static str {
     #[cfg(feature = "ndd")]
-    return str_full().get(0..1);
+    return str_full().get(0..1).unwrap();
     #[cfg(feature = "mx")]
     return unsafe { str_full().get_unchecked(0..1) };
 }
@@ -50,7 +62,7 @@ pub fn str_signal_hash() -> &'static str {
 #[inline(always)]
 pub fn str_signal_check_flow_is_submit_first() -> &'static str {
     #[cfg(feature = "ndd")]
-    return str_full().get(1..2);
+    return str_full().get(1..2).unwrap();
     #[cfg(feature = "mx")]
     return unsafe { str_full().get_unchecked(1..2) };
 }
@@ -58,7 +70,7 @@ pub fn str_signal_check_flow_is_submit_first() -> &'static str {
 #[inline(always)]
 pub fn str_signal_check_flow_is_signal_first() -> &'static str {
     #[cfg(feature = "ndd")]
-    return str_full().get_unchecked(2..3);
+    return str_full().get(2..3).unwrap();
     #[cfg(feature = "mx")]
     return unsafe { str_full().get_unchecked(2..3) };
 }
@@ -96,7 +108,7 @@ pub fn is_ptr_signal_hash(other: *const u8) -> bool {
 #[inline(always)]
 pub fn is_ptr_signal_check_flow_is_submit_first(other: *const u8) -> bool {
     #[cfg(feature = "ndd")]
-    return ptr::eq(ptr_signal_hash().add_wrapping(1), other);
+    return ptr::eq(ptr_signal_hash().wrapping_add(1), other);
     #[cfg(feature = "mx")]
     return ptr::eq(unsafe { ptr_signal_hash().add(1) }, other);
 }
@@ -104,7 +116,7 @@ pub fn is_ptr_signal_check_flow_is_submit_first(other: *const u8) -> bool {
 #[inline(always)]
 pub fn is_ptr_signal_check_flow_is_signal_first(other: *const u8) -> bool {
     #[cfg(feature = "ndd")]
-    return ptr::eq(ptr_signal_hash().add_wrapping(1), other);
+    return ptr::eq(ptr_signal_hash().wrapping_add(2), other);
     #[cfg(feature = "mx")]
     return ptr::eq(unsafe { ptr_signal_hash().add(2) }, other);
 }

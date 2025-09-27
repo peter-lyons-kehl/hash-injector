@@ -1,7 +1,7 @@
 #![doc = include_str!("../../README.md")]
 #![cfg_attr(not(any(feature = "mx", test)), no_std)]
 #![cfg_attr(not(any(feature = "mx", feature = "ndd")), forbid(unsafe_code))]
-#![cfg_attr(any(feature = "mx", feature = "ndd"), feature(mutex_data_ptr))] // https://github.com/rust-lang/rust/issues/140368
+#![cfg_attr(feature = "mx", feature(mutex_data_ptr))] // https://github.com/rust-lang/rust/issues/140368
 #![cfg_attr(feature = "hpe", feature(hasher_prefixfree_extras))] //  https://github.com/rust-lang/rust/issues/96762
 #![cfg_attr(feature = "flags", feature(adt_const_params))]
 // https://github.com/rust-lang/rust/issues/95174
