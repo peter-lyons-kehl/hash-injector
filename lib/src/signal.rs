@@ -1,18 +1,15 @@
 use core::hash::Hasher;
 //use core::slice;
 
-#[cfg(feature = "mx")]
+#[cfg(any(feature = "mx", feature = "ndd"))]
 use core::hint;
-#[cfg(feature = "mx")]
+#[cfg(any(feature = "mx", feature = "ndd"))]
 use core::str;
-#[cfg(feature = "mx")]
+#[cfg(any(feature = "mx", feature = "ndd"))]
 use std::sync::Mutex;
 
 use crate::flags;
-use flags::{
-    /*_ProtocolFlagsSignalledViaLen, _ProtocolFlagsSubset,*/ Flow, HashVia, ProtocolFlags,
-    SignalVia,
-};
+use flags::{Flow, HashVia, ProtocolFlags, SignalVia};
 
 #[cfg(feature = "hpe")]
 /// A fictitious slice length, which represents a signal that we either just handed an injected
@@ -28,65 +25,61 @@ pub const LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST: usize = usize::MAX - 1;
 /// (before submitting a hash).
 pub const LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST: usize = usize::MAX - 2;
 
-#[cfg(feature = "mx")]
+#[cfg(any(feature = "mx", feature = "ndd"))]
 type U8Array = [u8; 3];
-#[cfg(feature = "mx")]
+#[cfg(any(feature = "mx", feature = "ndd"))]
 pub static MX: Mutex<U8Array> = hint::black_box(Mutex::new([b'A', b'B', b'C']));
-/*const _: () = {
-    let __ = ARR.as_slice();
-    let __ = unsafe { slice::from_raw_parts(ARR.as_ptr(), 1) };
-};*/
 
-#[cfg(feature = "mx")]
+#[cfg(any(feature = "mx", feature = "ndd"))]
 #[inline(always)]
 fn str_full() -> &'static str {
     let bytes = unsafe { &*MX.data_ptr() as &U8Array };
     let bytes_slice = bytes.as_slice();
     unsafe { str::from_utf8_unchecked(bytes_slice) }
 }
-#[cfg(feature = "mx")]
+#[cfg(any(feature = "mx", feature = "ndd"))]
 #[inline(always)]
 pub fn str_signal_hash() -> &'static str {
     unsafe { str_full().get_unchecked(0..1) }
 }
-#[cfg(all(feature = "mx", feature = "chk-flow"))]
+#[cfg(all(any(feature = "mx", feature = "ndd"), feature = "chk-flow"))]
 #[inline(always)]
 pub fn str_signal_check_flow_is_submit_first() -> &'static str {
     unsafe { str_full().get_unchecked(1..2) }
 }
-#[cfg(all(feature = "mx", feature = "chk-flow"))]
+#[cfg(all(any(feature = "mx", feature = "ndd"), feature = "chk-flow"))]
 #[inline(always)]
 pub fn str_signal_check_flow_is_signal_first() -> &'static str {
     unsafe { str_full().get_unchecked(2..3) }
 }
 
-#[cfg(feature = "mx")]
+#[cfg(any(feature = "mx", feature = "ndd"))]
 #[inline(always)]
 pub fn u8s_signal_hash() -> &'static [u8] {
     str_signal_hash().as_bytes()
 }
-#[cfg(all(feature = "mx", feature = "chk-flow"))]
+#[cfg(all(any(feature = "mx", feature = "ndd"), feature = "chk-flow"))]
 #[inline(always)]
 pub fn u8s_signal_check_flow_is_submit_first() -> &'static [u8] {
     str_signal_check_flow_is_submit_first().as_bytes()
 }
-#[cfg(all(feature = "mx", feature = "chk-flow"))]
+#[cfg(all(any(feature = "mx", feature = "ndd"), feature = "chk-flow"))]
 #[inline(always)]
 pub fn u8s_signal_check_flow_is_signal_first() -> &'static [u8] {
     str_signal_check_flow_is_signal_first().as_bytes()
 }
 
-#[cfg(feature = "mx")]
+#[cfg(any(feature = "mx", feature = "ndd"))]
 #[inline(always)]
 pub fn ptr_signal_hash() -> *const u8 {
     MX.data_ptr() as *const u8
 }
-#[cfg(all(feature = "mx", feature = "chk-flow"))]
+#[cfg(all(any(feature = "mx", feature = "ndd"), feature = "chk-flow"))]
 #[inline(always)]
 pub fn ptr_signal_check_flow_is_submit_first() -> *const u8 {
     unsafe { ptr_signal_hash().add(1) }
 }
-#[cfg(all(feature = "mx", feature = "chk-flow"))]
+#[cfg(all(any(feature = "mx", feature = "ndd"), feature = "chk-flow"))]
 #[inline(always)]
 pub fn ptr_signal_check_flow_is_signal_first() -> *const u8 {
     unsafe { ptr_signal_hash().add(2) }
@@ -96,9 +89,9 @@ pub fn ptr_signal_check_flow_is_signal_first() -> *const u8 {
 fn signal<H: Hasher>(#[allow(non_snake_case)] PF: ProtocolFlags, _hasher: &mut H) {
     match flags::signal_via(PF) {
         SignalVia::U8s => {
-            #[cfg(feature = "mx")]
+            #[cfg(any(feature = "mx", feature = "ndd"))]
             _hasher.write(u8s_signal_hash());
-            #[cfg(not(feature = "mx"))]
+            #[cfg(not(any(feature = "mx", feature = "ndd")))]
             unreachable!()
         }
         SignalVia::Len => {
@@ -108,9 +101,9 @@ fn signal<H: Hasher>(#[allow(non_snake_case)] PF: ProtocolFlags, _hasher: &mut H
             unreachable!()
         }
         SignalVia::Str => {
-            #[cfg(all(feature = "mx", feature = "hpe"))]
+            #[cfg(all(any(feature = "mx", feature = "ndd"), feature = "hpe"))]
             _hasher.write_str(str_signal_hash());
-            #[cfg(not(all(feature = "mx", feature = "hpe")))]
+            #[cfg(not(all(any(feature = "mx", feature = "ndd"), feature = "hpe")))]
             unreachable!()
         }
     };
@@ -153,10 +146,7 @@ fn submit_hash<H: Hasher, const PF: ProtocolFlags>(hasher: &mut H, hash: u64) {
 ///
 /// Extra validation of signalling in the user's [core::hash::Hash] implementation is done ONLY in
 /// when built with relevant cargo features (`chk-flow`, `chk-hash`, `chk`).
-pub fn inject<H: Hasher, const PF: ProtocolFlags>(hasher: &mut H, hash: u64)
-/*where
-_ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,*/
-{
+pub fn inject<H: Hasher, const PF: ProtocolFlags>(hasher: &mut H, hash: u64) {
     match flags::flow(PF) {
         Flow::SubmitFirst => {
             submit_hash::<_, PF>(hasher, hash);
@@ -177,9 +167,9 @@ _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,*/
         Flow::SubmitFirst => {
             match flags::signal_via(PF) {
                 SignalVia::U8s => {
-                    #[cfg(feature = "mx")]
+                    #[cfg(any(feature = "mx", feature = "ndd"))]
                     hasher.write(u8s_signal_check_flow_is_submit_first());
-                    #[cfg(not(feature = "mx"))]
+                    #[cfg(not(any(feature = "mx", feature = "ndd")))]
                     unreachable!()
                 }
 
@@ -190,9 +180,9 @@ _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,*/
                     unreachable!()
                 }
                 SignalVia::Str => {
-                    #[cfg(all(feature = "mx", feature = "hpe"))]
+                    #[cfg(all(any(feature = "mx", feature = "ndd"), feature = "hpe"))]
                     hasher.write_str(str_signal_check_flow_is_submit_first());
-                    #[cfg(not(all(feature = "mx", feature = "hpe")))]
+                    #[cfg(not(all(any(feature = "mx", feature = "ndd"), feature = "hpe")))]
                     unreachable!()
                 }
             };
@@ -200,9 +190,9 @@ _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,*/
         Flow::SignalFirst => {
             match flags::signal_via(PF) {
                 SignalVia::U8s => {
-                    #[cfg(feature = "mx")]
+                    #[cfg(any(feature = "mx", feature = "ndd"))]
                     hasher.write(u8s_signal_check_flow_is_signal_first());
-                    #[cfg(not(feature = "mx"))]
+                    #[cfg(not(any(feature = "mx", feature = "ndd")))]
                     unreachable!()
                 }
                 SignalVia::Len => {
@@ -212,9 +202,9 @@ _ProtocolFlagsSubset<PF>: _ProtocolFlagsSignalledViaLen,*/
                     unreachable!()
                 }
                 SignalVia::Str => {
-                    #[cfg(all(feature = "mx", feature = "hpe"))]
+                    #[cfg(all(any(feature = "mx", feature = "ndd"), feature = "hpe"))]
                     hasher.write_str(str_signal_check_flow_is_signal_first());
-                    #[cfg(not(all(feature = "mx", feature = "hpe")))]
+                    #[cfg(not(all(any(feature = "mx", feature = "ndd"), feature = "hpe")))]
                     unreachable!()
                 }
             };

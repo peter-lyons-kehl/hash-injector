@@ -18,6 +18,7 @@ homepage = "https://github.com/peter-lyons-kehl/hash-injector"
 readme = "../README.md"
 
 [dependencies]
+ndd = { version = "0.*", optional = true, path="../../ndd" }
 # ???
 # parking_lot
 # lock_api
@@ -30,18 +31,29 @@ unexpected_cfgs = { level = "forbid"}
 
 [features]
 
-# Using Mutex and its data_ptr function to get signalling slices. It requires "std" library. It
+# Using Mutex and its `data_ptr` function to get signalling slices. It requires "std" library. It
 # involves trivial unsafe code, used only for creation of static signalling string slices/pointers.
 # This enables
 # - "u8 slice"-based signalling, protocol flags in flags::new::u8s
 # - "str" signalling, protocol flags in flags::new::str - if "hpe" feature is enabled, too. That
 #   requires nightly.
+#
+# This requires `std`. To achieve the same zero-cost functionality, but without `std`, use `ndd`
+# feature instead.
+#
+# Do not use `mx` and `ndd` features together.
 mx = []
+
+# Using ndd::NonDeDuplicated. Equivalent to `mx` feature, but this is `no_std`-compatible.
+#
+# Do not use `mx` and `ndd` features together.
+ndd = ["dep:ndd"]
 
 # Using Rust feature "hasher_prefixfree_extras": https://github.com/rust-lang/rust/issues/96762.
 # This enables
 # - "prefix length"-based signalling, protocol flags in flags::new::len
-# - "str" signalling, protocol flags in flags::new::str - if "mx" feature is enabled, too.
+# - "str" signalling, through protocol flags in flags::new::str - if "mx" or "ndd" feature is
+#   enabled, too.
 #
 # Both require nightly.
 hpe = []
@@ -114,4 +126,4 @@ chk-details = ["chk"]
 #default = [  "mx", "hpe",          "chk-flow", "chk-hash", "chk", "chk-details"]
 #default = [  "mx", "hpe", "flags"                                              ]
 #default = [  "mx", "hpe", "flags", "chk-flow", "chk-hash", "chk"               ]
-#default = [  "mx", "hpe", "flags", "chk-flow", "chk-hash", "chk", "chk-details"]
+ default = [  "mx", "hpe", "flags", "chk-flow", "chk-hash", "chk", "chk-details"]

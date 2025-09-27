@@ -1,7 +1,7 @@
 use core::hash::{BuildHasher, Hasher};
 
 use crate::flags::{self, Flow, ProtocolFlags, SignalVia};
-#[cfg(feature = "mx")]
+#[cfg(any(feature = "mx", feature = "ndd"))]
 use crate::signal;
 
 #[cfg(feature = "hpe")]
@@ -9,7 +9,7 @@ use crate::signal::LEN_SIGNAL_HASH;
 #[cfg(all(feature = "hpe", feature = "chk-flow"))]
 use crate::signal::{LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST, LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST};
 use crate::state::SignalState;
-#[cfg(feature = "mx")]
+#[cfg(any(feature = "mx", feature = "ndd"))]
 use core::ptr;
 
 pub struct SignalledInjectionHasher<H: Hasher, const PF: ProtocolFlags> {
@@ -133,7 +133,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
             SignalVia::U8s => {
                 match flags::flow(PF) {
                     Flow::SubmitFirst => {
-                        #[cfg(feature = "mx")]
+                        #[cfg(any(feature = "mx", feature = "ndd"))]
                         if ptr::eq(bytes.as_ptr(), signal::ptr_signal_hash()) {
                             if self.state.is_hash_possibly_submitted(PF) {
                                 self.state.set_hash_received();
@@ -168,7 +168,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                             self.hasher.write(bytes);
                             self.written_ordinary_hash();
                         }
-                        #[cfg(not(feature = "mx"))]
+                        #[cfg(not(any(feature = "mx", feature = "ndd")))]
                         {
                             self.state
                                 .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
@@ -177,7 +177,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                         }
                     }
                     Flow::SignalFirst => {
-                        #[cfg(feature = "mx")]
+                        #[cfg(any(feature = "mx", feature = "ndd"))]
                         if ptr::eq(bytes.as_ptr(), signal::ptr_signal_hash()) {
                             self.state.assert_nothing_written();
                             self.state.set_signalled_proposal_coming(PF);
@@ -200,7 +200,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                             self.hasher.write(bytes);
                             self.written_ordinary_hash();
                         }
-                        #[cfg(not(feature = "mx"))]
+                        #[cfg(not(any(feature = "mx", feature = "ndd")))]
                         {
                             self.state
                                 .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
@@ -398,7 +398,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
             SignalVia::Str => {
                 match flags::flow(PF) {
                     Flow::SubmitFirst => {
-                        #[cfg(feature = "mx")]
+                        #[cfg(any(feature = "mx", feature = "ndd"))]
                         if ptr::eq(s.as_ptr(), signal::ptr_signal_hash()) {
                             if self.state.is_hash_possibly_submitted(PF) {
                                 self.state.set_hash_received();
@@ -433,7 +433,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                             self.hasher.write_str(s);
                             self.written_ordinary_hash();
                         }
-                        #[cfg(not(feature = "mx"))]
+                        #[cfg(not(any(feature = "mx", feature = "ndd")))]
                         {
                             self.state
                                 .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);
@@ -442,7 +442,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                         }
                     }
                     Flow::SignalFirst => {
-                        #[cfg(feature = "mx")]
+                        #[cfg(any(feature = "mx", feature = "ndd"))]
                         if ptr::eq(s.as_ptr(), signal::ptr_signal_hash()) {
                             self.state.assert_nothing_written();
                             self.state.set_signalled_proposal_coming(PF);
@@ -465,7 +465,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                             self.hasher.write_str(s);
                             self.written_ordinary_hash();
                         }
-                        #[cfg(not(feature = "mx"))]
+                        #[cfg(not(any(feature = "mx", feature = "ndd")))]
                         {
                             self.state
                                 .assert_nothing_written_or_ordinary_hash_or_possibly_submitted(PF);

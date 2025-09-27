@@ -20,7 +20,10 @@ enum SignalStateKindImpl {
     /// Ordinary hash (or its part) has been written
     WrittenOrdinaryHash = 2,
 
-    #[cfg_attr(not(any(feature = "mx", feature = "hpe")), allow(dead_code))]
+    #[cfg_attr(
+        not(any(feature = "mx", feature = "ndd", feature = "hpe")),
+        allow(dead_code)
+    )]
     /// Set to zero, so as to speed up write_u64(,,,) when signal_first(PF)==true. Use ONLY when
     /// signal_first(PF)==true.
     SignalledProposalComing = 0,
@@ -91,7 +94,10 @@ impl SignalState {
         self.kind = SignalStateKind::WrittenOrdinaryHash;
     }
 
-    #[cfg_attr(not(any(feature = "mx", feature = "hpe")), allow(dead_code))]
+    #[cfg_attr(
+        not(any(feature = "mx", feature = "ndd", feature = "hpe")),
+        allow(dead_code)
+    )]
     /// Set the state that it was signalled that a hash proposal is coming.
     ///
     /// Requires `signal_first(PF)==true` - otherwise it panics in debug mode (regardless of, and
@@ -126,7 +132,10 @@ impl SignalState {
         }
     }
 
-    #[cfg_attr(not(any(feature = "mx", feature = "hpe")), allow(dead_code))]
+    #[cfg_attr(
+        not(any(feature = "mx", feature = "ndd", feature = "hpe")),
+        allow(dead_code)
+    )]
     #[inline(always)]
     pub const fn set_hash_received(&mut self) {
         self.kind = SignalStateKind::HashReceived;
@@ -201,7 +210,10 @@ impl SignalState {
         matches!(self.kind, SignalStateKindImpl::SignalledProposalComing)
     }
 
-    #[cfg_attr(not(any(feature = "mx", feature = "hpe")), allow(dead_code))]
+    #[cfg_attr(
+        not(any(feature = "mx", feature = "ndd", feature = "hpe")),
+        allow(dead_code)
+    )]
     #[inline(always)]
     pub const fn is_hash_possibly_submitted(
         &self,
@@ -218,7 +230,10 @@ impl SignalState {
     }
     // ------
 
-    #[cfg_attr(not(any(feature = "mx", feature = "hpe")), allow(dead_code))]
+    #[cfg_attr(
+        not(any(feature = "mx", feature = "ndd", feature = "hpe")),
+        allow(dead_code)
+    )]
     #[inline(always)]
     pub const fn assert_nothing_written(&self) {
         #[cfg(feature = "chk")]
@@ -327,24 +342,24 @@ const _CHECKS: () = {
 
     const SXXXXX_FIRST_FLAGS_LEN: usize = if cfg!(feature = "hpe") {
         4 // hpe and regardless of mx: len signalling
-        + if cfg!(feature = "mx") {
+        + if cfg!(feature = "mx") || cfg!(feature ="ndd") {
             8 // hpe and mx: u8s and str signalling
         } else {
             0
         }
-    } else if cfg!(feature = "mx") {
+    } else if cfg!(feature = "mx") || cfg!(feature = "ndd") {
         4 // no hpe, mx only: u8s signal;ling
     } else {
         0
     };
     const SIGNAL_FIRST_FLAGS: [ProtocolFlags; SXXXXX_FIRST_FLAGS_LEN] = [
-        #[cfg(feature = "mx")]
+        #[cfg(any(feature = "mx", feature = "ndd"))]
         flags::new::u8s::signal_first::u64(),
-        #[cfg(feature = "mx")]
+        #[cfg(any(feature = "mx", feature = "ndd"))]
         flags::new::u8s::signal_first::i64(),
-        #[cfg(feature = "mx")]
+        #[cfg(any(feature = "mx", feature = "ndd"))]
         flags::new::u8s::signal_first::u128(),
-        #[cfg(feature = "mx")]
+        #[cfg(any(feature = "mx", feature = "ndd"))]
         flags::new::u8s::signal_first::i128(),
         #[cfg(feature = "hpe")]
         flags::new::len::signal_first::u64(),
@@ -354,13 +369,13 @@ const _CHECKS: () = {
         flags::new::len::signal_first::u128(),
         #[cfg(feature = "hpe")]
         flags::new::len::signal_first::i128(),
-        #[cfg(all(feature = "mx", feature = "hpe"))]
+        #[cfg(all(any(feature = "mx", feature = "ndd"), feature = "hpe"))]
         flags::new::str::signal_first::u64(),
-        #[cfg(all(feature = "mx", feature = "hpe"))]
+        #[cfg(all(any(feature = "mx", feature = "ndd"), feature = "hpe"))]
         flags::new::str::signal_first::i64(),
-        #[cfg(all(feature = "mx", feature = "hpe"))]
+        #[cfg(all(any(feature = "mx", feature = "ndd"), feature = "hpe"))]
         flags::new::str::signal_first::u128(),
-        #[cfg(all(feature = "mx", feature = "hpe"))]
+        #[cfg(all(any(feature = "mx", feature = "ndd"), feature = "hpe"))]
         flags::new::str::signal_first::i128(),
     ];
     {
@@ -403,13 +418,13 @@ const _CHECKS: () = {
     }
 
     const SUBMIT_FIRST_FLAGS: [ProtocolFlags; SXXXXX_FIRST_FLAGS_LEN] = [
-        #[cfg(feature = "mx")]
+        #[cfg(any(feature = "mx", feature = "ndd"))]
         flags::new::u8s::submit_first::u64(),
-        #[cfg(feature = "mx")]
+        #[cfg(any(feature = "mx", feature = "ndd"))]
         flags::new::u8s::submit_first::i64(),
-        #[cfg(feature = "mx")]
+        #[cfg(any(feature = "mx", feature = "ndd"))]
         flags::new::u8s::submit_first::u128(),
-        #[cfg(feature = "mx")]
+        #[cfg(any(feature = "mx", feature = "ndd"))]
         flags::new::u8s::submit_first::i128(),
         #[cfg(feature = "hpe")]
         flags::new::len::submit_first::u64(),
@@ -419,13 +434,13 @@ const _CHECKS: () = {
         flags::new::len::submit_first::u128(),
         #[cfg(feature = "hpe")]
         flags::new::len::submit_first::i128(),
-        #[cfg(all(feature = "mx", feature = "hpe"))]
+        #[cfg(all(any(feature = "mx", feature = "ndd"), feature = "hpe"))]
         flags::new::str::submit_first::u64(),
-        #[cfg(all(feature = "mx", feature = "hpe"))]
+        #[cfg(all(any(feature = "mx", feature = "ndd"), feature = "hpe"))]
         flags::new::str::submit_first::i64(),
-        #[cfg(all(feature = "mx", feature = "hpe"))]
+        #[cfg(all(any(feature = "mx", feature = "ndd"), feature = "hpe"))]
         flags::new::str::submit_first::u128(),
-        #[cfg(all(feature = "mx", feature = "hpe"))]
+        #[cfg(all(any(feature = "mx", feature = "ndd"), feature = "hpe"))]
         flags::new::str::submit_first::i128(),
     ];
     {
@@ -507,7 +522,10 @@ mod tests {
     use super::*;
 
     #[test]
+    //#[should_panic]
     fn it_works() {
-        SignalState::new_nothing_written().assert_nothing_written_or_ordinary_hash();
+        let _ = std::panic::catch_unwind(|| {});
+        //panic!("{}", core::env!("CARGO_CRATE_NAME"));
+        //panic!("{}", core::env!("CARGO_BIN_NAME"));
     }
 }

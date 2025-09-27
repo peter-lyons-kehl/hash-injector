@@ -5,3 +5,10 @@ version = 4
 [[package]]
 name = "hash-injector"
 version = "0.1.0"
+dependencies = [
+ "ndd",
+]
+
+[[package]]
+name = "ndd"
+version = "0.1.0"
