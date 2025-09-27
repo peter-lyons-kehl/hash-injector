@@ -9,8 +9,6 @@ use crate::signal::LEN_SIGNAL_HASH;
 #[cfg(all(feature = "hpe", feature = "chk-flow"))]
 use crate::signal::{LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST, LEN_SIGNAL_CHECK_FLOW_IS_SUBMIT_FIRST};
 use crate::state::SignalState;
-#[cfg(any(feature = "mx", feature = "ndd"))]
-use core::ptr;
 
 pub struct SignalledInjectionHasher<H: Hasher, const PF: ProtocolFlags> {
     hasher: H,
@@ -134,7 +132,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                 match flags::flow(PF) {
                     Flow::SubmitFirst => {
                         #[cfg(any(feature = "mx", feature = "ndd"))]
-                        if ptr::eq(bytes.as_ptr(), signal::ptr_signal_hash()) {
+                        if signal::is_ptr_signal_hash(bytes.as_ptr()) {
                             if self.state.is_hash_possibly_submitted(PF) {
                                 self.state.set_hash_received();
                             } else {
@@ -151,15 +149,12 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                         } else {
                             #[cfg(feature = "chk-flow")]
                             {
-                                if ptr::eq(
-                                    bytes.as_ptr(),
-                                    signal::ptr_signal_check_flow_is_submit_first(),
-                                ) {
+                                if signal::is_ptr_signal_check_flow_is_submit_first(bytes.as_ptr())
+                                {
                                     return; // just being checked (no data to write)
                                 }
-                                assert!(!ptr::eq(
-                                    bytes.as_ptr(),
-                                    signal::ptr_signal_check_flow_is_signal_first()
+                                assert!(!signal::is_ptr_signal_check_flow_is_signal_first(
+                                    bytes.as_ptr()
                                 ));
                             }
 
@@ -178,21 +173,18 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                     }
                     Flow::SignalFirst => {
                         #[cfg(any(feature = "mx", feature = "ndd"))]
-                        if ptr::eq(bytes.as_ptr(), signal::ptr_signal_hash()) {
+                        if signal::is_ptr_signal_hash(bytes.as_ptr()) {
                             self.state.assert_nothing_written();
                             self.state.set_signalled_proposal_coming(PF);
                         } else {
                             #[cfg(feature = "chk-flow")]
                             {
-                                if ptr::eq(
-                                    bytes.as_ptr(),
-                                    signal::ptr_signal_check_flow_is_signal_first(),
-                                ) {
+                                if signal::is_ptr_signal_check_flow_is_signal_first(bytes.as_ptr())
+                                {
                                     return; // just being checked (no data to write)
                                 }
-                                assert!(!ptr::eq(
-                                    bytes.as_ptr(),
-                                    signal::ptr_signal_check_flow_is_submit_first()
+                                assert!(!signal::is_ptr_signal_check_flow_is_submit_first(
+                                    bytes.as_ptr()
                                 ));
                             }
 
@@ -399,7 +391,7 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                 match flags::flow(PF) {
                     Flow::SubmitFirst => {
                         #[cfg(any(feature = "mx", feature = "ndd"))]
-                        if ptr::eq(s.as_ptr(), signal::ptr_signal_hash()) {
+                        if signal::is_ptr_signal_hash(s.as_ptr()) {
                             if self.state.is_hash_possibly_submitted(PF) {
                                 self.state.set_hash_received();
                             } else {
@@ -416,15 +408,11 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                         } else {
                             #[cfg(feature = "chk-flow")]
                             {
-                                if ptr::eq(
-                                    s.as_ptr(),
-                                    signal::ptr_signal_check_flow_is_submit_first(),
-                                ) {
+                                if signal::is_ptr_signal_check_flow_is_submit_first(s.as_ptr()) {
                                     return; // just being checked (no data to write)
                                 }
-                                assert!(!ptr::eq(
-                                    s.as_ptr(),
-                                    signal::ptr_signal_check_flow_is_signal_first()
+                                assert!(!signal::is_ptr_signal_check_flow_is_signal_first(
+                                    s.as_ptr()
                                 ));
                             }
 
@@ -443,21 +431,17 @@ impl<H: Hasher, const PF: ProtocolFlags> Hasher for SignalledInjectionHasher<H, 
                     }
                     Flow::SignalFirst => {
                         #[cfg(any(feature = "mx", feature = "ndd"))]
-                        if ptr::eq(s.as_ptr(), signal::ptr_signal_hash()) {
+                        if signal::is_ptr_signal_hash(s.as_ptr()) {
                             self.state.assert_nothing_written();
                             self.state.set_signalled_proposal_coming(PF);
                         } else {
                             #[cfg(feature = "chk-flow")]
                             {
-                                if ptr::eq(
-                                    s.as_ptr(),
-                                    signal::ptr_signal_check_flow_is_signal_first(),
-                                ) {
+                                if signal::is_ptr_signal_check_flow_is_signal_first(s.as_ptr()) {
                                     return; // just being checked (no data to write)
                                 }
-                                assert!(!ptr::eq(
-                                    s.as_ptr(),
-                                    signal::ptr_signal_check_flow_is_submit_first()
+                                assert!(!signal::is_ptr_signal_check_flow_is_submit_first(
+                                    s.as_ptr()
                                 ));
                             }
 
