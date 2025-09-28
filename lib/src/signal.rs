@@ -30,9 +30,9 @@ pub const LEN_SIGNAL_CHECK_FLOW_IS_SIGNAL_FIRST: usize = usize::MAX - 2;
 #[cfg(any(feature = "mx", feature = "ndd"))]
 type U8Array = [u8; 3];
 #[cfg(feature = "mx")]
-pub static MX: Mutex<U8Array> = hint::black_box(Mutex::new([b'A', b'B', b'C']));
+static SIG_MX: Mutex<U8Array> = hint::black_box(Mutex::new([b'A', b'B', b'C']));
 #[cfg(feature = "ndd")]
-pub static NDD: NonDeDuplicated<U8Array> = NonDeDuplicated::new([b'A', b'B', b'C']);
+static SIG_NDD: NonDeDuplicated<U8Array> = NonDeDuplicated::new([b'A', b'B', b'C']);
 
 #[cfg(any(feature = "mx", feature = "ndd"))]
 #[inline(always)]
@@ -41,9 +41,9 @@ fn str_full() -> &'static str {
     //
     //let bytes = &*NDD;
     #[cfg(feature = "ndd")]
-    let bytes = NDD.get();
+    let bytes = SIG_NDD.get();
     #[cfg(feature = "mx")]
-    let bytes = unsafe { &*MX.data_ptr() as &U8Array };
+    let bytes = unsafe { &*SIG_MX.data_ptr() as &U8Array };
     let bytes_slice = bytes.as_slice();
     #[cfg(feature = "ndd")]
     return str::from_utf8(bytes_slice).unwrap();
@@ -97,7 +97,7 @@ fn ptr_signal_hash() -> *const u8 {
     #[cfg(feature = "ndd")]
     panic!("TODO");
     #[cfg(feature = "mx")]
-    return MX.data_ptr() as *const u8;
+    return SIG_MX.data_ptr() as *const u8;
 }
 #[cfg(any(feature = "mx", feature = "ndd"))]
 #[inline(always)]
