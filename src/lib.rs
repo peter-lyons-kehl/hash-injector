@@ -1,4 +1,4 @@
-#![doc = include_str!("../../README.md")]
+#![doc = include_str!("../README.md")]
 #![cfg_attr(not(any(feature = "mx", test)), no_std)]
 #![cfg_attr(not(any(feature = "mx", feature = "ndd")), forbid(unsafe_code))]
 #![cfg_attr(feature = "mx", feature(mutex_data_ptr))] // https://github.com/rust-lang/rust/issues/140368

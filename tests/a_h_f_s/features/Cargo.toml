@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-hash-injector =  { path = "../../../lib", features = ["asserts", "flags-type", "check-finish", "check-protocol"] }
-
+# hash-injector =  { path = "../../..", version="0.0.1-alpha", features = ["asserts", "flags-type", "check-finish", "check-protocol"] }
+hash-injector =  { path = "../../..", version="0.0.1-alpha", features = ["flags", "chk-flow", "chk-hash", "chk", "chk-details"] }

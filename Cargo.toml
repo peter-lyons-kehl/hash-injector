@@ -15,10 +15,9 @@ keywords = ["cache", "lru", "hashmap", "data-structures"]
 
 repository = "https://github.com/peter-lyons-kehl/hash-injector"
 homepage = "https://github.com/peter-lyons-kehl/hash-injector"
-readme = "../README.md"
 
 [dependencies]
-ndd = { version = "0.*", optional = true, path="../../ndd" }
+ndd = { version = "0.*", optional = true, path="../ndd" }
 
 [lints.rust]
 unexpected_cfgs = { level = "forbid"}
