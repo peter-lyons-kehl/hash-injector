@@ -3,7 +3,7 @@
 ## Directory tree
 
 The actual test code is in [`tests-shared/`](../tests-shared). All directories **directly** under
-[]`tests/`](./) are just "variations/instantiations" of [`tests-shared/`](../tests-shared/), one per
+[`tests/`](./) are just "variations/instantiations" of [`tests-shared/`](../tests-shared/), one per
 each combination of cargo features.
 
 Each such directory (directly under `tests/`) is a [Rust virtual
@@ -14,10 +14,12 @@ build time spent on
 the same virtual workspace (under `tests/`) differ only in `const` generic parameters (of types
 `InjectionFlags` and `KeyFlags`).
 
-### Directory naming code
 
-Each letter indicates whether a respective cargo feature is turned on.
+### Directory naming convention
 
+Each letter indicates whether a respective cargo feature is turned on. This is work-in-progress.
+
+<!--
 ```
 Directory name parts, each represents                    Crate/              Meaning
 an enabled cargo feature:                                feature             
@@ -40,3 +42,4 @@ asserts                                                  hash-injector/       Ex
 asserts_base-flags-type_keys-flags-type_finish_protocol
 = directory with all cargo features enabled.
 ```
+-->

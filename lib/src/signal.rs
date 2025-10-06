@@ -37,11 +37,8 @@ static SIG_NDD: NonDeDuplicated<U8Array> = NonDeDuplicated::new([b'A', b'B', b'C
 #[cfg(any(feature = "mx", feature = "ndd"))]
 #[inline(always)]
 fn str_full() -> &'static str {
-    // TODO check whether the following is the same, or whether it creates a temporary local array!
-    //
-    //let bytes = &*NDD;
     #[cfg(feature = "ndd")]
-    let bytes = SIG_NDD.get();
+    let bytes = &*SIG_NDD;
     #[cfg(feature = "mx")]
     let bytes = unsafe { &*SIG_MX.data_ptr() as &U8Array };
     let bytes_slice = bytes.as_slice();

@@ -83,6 +83,7 @@ adapter, with its
 especially when one type implements
 [core::borrow::Borrow](https://doc.rust-lang.org/nightly/core/borrow/trait.Borrow.html)
 
+<!--
 ## Details
 
 ### Signalling
@@ -90,15 +91,11 @@ especially when one type implements
 <!-- To render the following, use
  https://marketplace.visualstudio.com/items?itemName=bierner.markdown-mermaid, or
  https://github.com/simov/markdown-viewer in a browser, or see it at
- https://github.com/peter-lyons-kehl/hash-injector/blob/main/README.md -->
+ https://github.com/peter-lyons-kehl/hash-injector/blob/main/README.md
 ```mermaid
 graph TD;
-    A-->B;
-    A-->C;
-    B-->D;
-    C-->D;
 ```
-
+-->
 ## Compatibility
 
 ### Backwards-compatible

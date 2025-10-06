@@ -1,6 +1,6 @@
 [package]
 name = "hash-injector"
-version = "0.1.0"
+version = "0.0.1-alpha"
 edition = "2024"
 
 license = "BSD-2-Clause OR Apache-2.0 OR MIT"
@@ -19,12 +19,6 @@ readme = "../README.md"
 
 [dependencies]
 ndd = { version = "0.*", optional = true, path="../../ndd" }
-# ???
-# parking_lot
-# lock_api
-# spin
-# no_mutex
-# critical-section
 
 [lints.rust]
 unexpected_cfgs = { level = "forbid"}
@@ -140,4 +134,3 @@ chk-details = ["chk"]
 #default = [        "ndd", "hpe", "flags", "chk-flow", "chk-hash", "chk"               ]
 #default = [  "mx",        "hpe", "flags", "chk-flow", "chk-hash", "chk", "chk-details"]
 #default = [        "ndd", "hpe", "flags", "chk-flow", "chk-hash", "chk", "chk-details"]
-
